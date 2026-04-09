@@ -1,4 +1,4 @@
-// Focuz Engine v3.5.2 - Fix de Carrito y Favicon
+// Focuz Engine v3.5.3 - Fix de Stock, Agrupación y WhatsApp
 window.allProd = [];
 window.carrito = [];
 window.config = {};
@@ -12,13 +12,11 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 if(row.clave) window.config[row.clave.trim()] = row.valor ? row.valor.trim() : ""; 
             });
             
-            // Inyección de Configuración
             if(window.config.color_principal) document.documentElement.style.setProperty('--p-color', window.config.color_principal);
             document.getElementById('brand-name').innerText = window.config.nombre_tienda || "Focuz Shop";
             document.getElementById('dinamic-title').innerText = window.config.nombre_tienda || "Focuz Shop";
             if(window.config.portada) document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
             
-            // FIX FAVICON
             if(window.config.favicon) {
                 let fav = document.getElementById('favicon');
                 if(fav) fav.href = window.config.favicon;
@@ -122,10 +120,18 @@ window.verDetalle = function(nombre) {
     
     document.getElementById('det-selector-area').innerHTML = htmlSelector;
     const btn = document.getElementById('det-btn-add');
-    btn.disabled = variants.length > 1; 
-    btn.innerText = variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO";
     
-    if(variants.length === 1) {
+    // FIX: Bloqueo de stock en modal para producto único
+    const stockPadre = parseInt(padre.Stock || 0);
+    if(variants.length === 1 && stockPadre <= 0) {
+        btn.disabled = true;
+        btn.innerText = "PRODUCTO AGOTADO";
+    } else {
+        btn.disabled = variants.length > 1; 
+        btn.innerText = variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO";
+    }
+    
+    if(variants.length === 1 && stockPadre > 0) {
         btn.onclick = () => window.addAlCarrito(padre.ID_unico);
     }
 
@@ -141,23 +147,34 @@ window.updateVariantDetail = function(select) {
         `<span class="text-muted text-decoration-line-through small">C$ ${p.Precio}</span> C$ ${p['Precio Descuento']}` : `C$ ${p.Precio}`;
     if(p['Imagen 1']) document.getElementById('det-img-main').src = p['Imagen 1'];
     
+    // FIX: Bloqueo de stock en modal para variantes
+    const isOut = parseInt(p.Stock || 0) <= 0;
     const btn = document.getElementById('det-btn-add');
-    btn.disabled = false;
-    btn.innerText = "AGREGAR AL CARRITO";
-    btn.onclick = () => window.addAlCarrito(id);
+    btn.disabled = isOut;
+    btn.innerText = isOut ? "AGOTADO" : "AGREGAR AL CARRITO";
+    btn.onclick = isOut ? null : () => window.addAlCarrito(id);
 };
 
 window.addAlCarrito = function(id) {
     const p = window.allProd.find(v => v.ID_unico == id);
-    window.carrito.push({ 
-        n: p.Nombre, 
-        v: p['Color o Estilo'] || "Único", 
-        p: parseFloat(p['Precio Descuento'] || p.Precio), 
-        f: p['Imagen 1'] 
-    });
+    
+    // FIX: AGRUPAR PRODUCTOS REPETIDOS
+    const index = window.carrito.findIndex(item => item.id === id);
+    if(index > -1) {
+        window.carrito[index].cant += 1;
+    } else {
+        window.carrito.push({ 
+            id: p.ID_unico,
+            n: p.Nombre, 
+            v: p['Color o Estilo'] || "Único", 
+            p: parseFloat(p['Precio Descuento'] || p.Precio), 
+            f: p['Imagen 1'],
+            cant: 1
+        });
+    }
+
     window.actualizarCarrito();
     
-    // CERRAR MODAL Y ABRIR CARRITO (FIX)
     const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
     if(m) m.hide();
     
@@ -171,11 +188,14 @@ window.actualizarCarrito = function() {
     list.innerHTML = window.carrito.map((i, idx) => `
         <div class="d-flex align-items-center mb-3 border-bottom pb-2">
             <img src="${i.f}" style="width:55px; height:55px; object-fit:cover" class="rounded-3 me-3">
-            <div class="flex-grow-1"><h6 class="mb-0 small fw-bold">${i.n}</h6><small class="text-muted">${i.v}</small></div>
-            <div class="text-end"><b>C$ ${i.p}</b><br><button class="btn btn-sm text-danger p-0" onclick="window.borrarItem(${idx})">✕</button></div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 small fw-bold">${i.n} ${i.cant > 1 ? `<span class="badge bg-secondary">x${i.cant}</span>` : ''}</h6>
+                <small class="text-muted">${i.v}</small>
+            </div>
+            <div class="text-end"><b>C$ ${i.p * i.cant}</b><br><button class="btn btn-sm text-danger p-0" onclick="window.borrarItem(${idx})">✕</button></div>
         </div>`).join('');
-    const total = window.carrito.reduce((s, i) => s + i.p, 0);
-    document.getElementById('c-count').innerText = window.carrito.length;
+    const total = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
+    document.getElementById('c-count').innerText = window.carrito.reduce((s, i) => s + i.cant, 0);
     document.getElementById('c-total').innerText = "C$ " + total;
     document.getElementById('total-val').innerText = "C$ " + total;
 };
@@ -185,8 +205,12 @@ window.vaciarCarrito = function() { if(confirm("¿Vaciar pedido?")) { window.car
 
 window.enviarWhatsApp = function() {
     if(!window.carrito.length) return;
-    let m = `*PEDIDO: ${window.config.nombre_tienda}*\n` + (window.config.mensaje_base || "Hola! Quiero este pedido:\n\n");
-    window.carrito.forEach(i => m += `✅ *${i.n}* (${i.v}) - C$ ${i.p}\n`);
-    m += `\n*TOTAL: C$ ${window.carrito.reduce((s, i) => s + i.p, 0)}*`;
+    // FIX: NUEVO SALUDO Y ESPACIADO
+    let m = "Hola! quiero hacer este pedido:\n\n";
+    window.carrito.forEach(i => {
+        m += `✅ *${i.n}* (x${i.cant}) - ${i.v} | C$ ${i.p * i.cant}\n`;
+    });
+    const granTotal = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
+    m += `\n*TOTAL: C$ ${granTotal}*`;
     window.open(`https://wa.me/${window.config.celular.replace(/\s+/g,'')}?text=${encodeURIComponent(m)}`, '_blank');
 };
