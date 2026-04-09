@@ -1,4 +1,4 @@
-// Focuz Engine v3.5 - Agrupación por Variantes (Color o Estilo)
+// Focuz Engine v3.5.2 - Fix de Carrito y Favicon
 window.allProd = [];
 window.carrito = [];
 window.config = {};
@@ -12,10 +12,17 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 if(row.clave) window.config[row.clave.trim()] = row.valor ? row.valor.trim() : ""; 
             });
             
+            // Inyección de Configuración
             if(window.config.color_principal) document.documentElement.style.setProperty('--p-color', window.config.color_principal);
             document.getElementById('brand-name').innerText = window.config.nombre_tienda || "Focuz Shop";
             document.getElementById('dinamic-title').innerText = window.config.nombre_tienda || "Focuz Shop";
             if(window.config.portada) document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
+            
+            // FIX FAVICON
+            if(window.config.favicon) {
+                let fav = document.getElementById('favicon');
+                if(fav) fav.href = window.config.favicon;
+            }
             
             let socHTML = '';
             if(window.config.facebook) socHTML += `<a href="${window.config.facebook}" target="_blank"><i class="fab fa-facebook"></i></a>`;
@@ -51,7 +58,6 @@ window.filtrar = function() {
     const searchVal = document.getElementById('search').value.toLowerCase();
     const filtered = window.allProd.filter(p => (window.catAct === "Todas" || p.Category === window.catAct) && p.Nombre.toLowerCase().includes(searchVal));
     
-    // AGRUPACIÓN POR NOMBRE
     const groups = filtered.reduce((acc, p) => {
         if (!acc[p.Nombre]) acc[p.Nombre] = [];
         acc[p.Nombre].push(p);
@@ -60,11 +66,9 @@ window.filtrar = function() {
 
     document.getElementById('productos').innerHTML = Object.keys(groups).map(nombre => {
         const variants = groups[nombre];
-        // Buscamos al padre (estilo vacío), si no, el primero
         const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "") || variants[0];
         const stockTotal = variants.reduce((acc, v) => acc + parseInt(v.Stock || 0), 0);
-        const tieneDescuento = variants.some(v => v['Precio Descuento'] && v['Precio Descuento'] > 0);
-        const etiqueta = padre.Etiqueta || ""; // Usamos la etiqueta del padre o la del primero
+        const etiqueta = padre.Etiqueta || "";
 
         return `
         <div class="col-6 col-md-4 col-lg-3">
@@ -93,11 +97,9 @@ window.verDetalle = function(nombre) {
     document.getElementById('det-desc').innerText = padre['Descripción'] || "Sin descripción.";
     document.getElementById('det-img-main').src = padre['Imagen 1'];
 
-    // Galería
     const fotos = [padre['Imagen 1'], padre['Imagen 2'], padre['Imagen 3']].filter(f => f && f.trim() !== "");
     document.getElementById('det-thumbs').innerHTML = fotos.map(f => `<img src="${f}" class="thumb-img" onclick="document.getElementById('det-img-main').src='${f}'">`).join('');
 
-    // Lógica de Selector de Variantes
     let htmlSelector = "";
     if (variants.length > 1) {
         htmlSelector = `<label class="small fw-bold mb-1">Elige una opción:</label>
@@ -120,10 +122,9 @@ window.verDetalle = function(nombre) {
     
     document.getElementById('det-selector-area').innerHTML = htmlSelector;
     const btn = document.getElementById('det-btn-add');
-    btn.disabled = variants.length > 1; // Se habilita al elegir variante
+    btn.disabled = variants.length > 1; 
     btn.innerText = variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO";
     
-    // Si es producto único, el botón ya funciona
     if(variants.length === 1) {
         btn.onclick = () => window.addAlCarrito(padre.ID_unico);
     }
@@ -155,8 +156,37 @@ window.addAlCarrito = function(id) {
         f: p['Imagen 1'] 
     });
     window.actualizarCarrito();
-    bootstrap.Modal.getInstance(document.getElementById('detalleModal')).hide();
-    new bootstrap.Offcanvas(document.getElementById('cart')).show();
+    
+    // CERRAR MODAL Y ABRIR CARRITO (FIX)
+    const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
+    if(m) m.hide();
+    
+    const cartEl = document.getElementById('cart');
+    const bsOffcanvas = new bootstrap.Offcanvas(cartEl);
+    bsOffcanvas.show();
 };
 
-// ... (El resto de funciones: actualizarCarrito, borrarItem, vaciarCarrito, enviarWhatsApp se mantienen igual)
+window.actualizarCarrito = function() {
+    const list = document.getElementById('cart-list');
+    list.innerHTML = window.carrito.map((i, idx) => `
+        <div class="d-flex align-items-center mb-3 border-bottom pb-2">
+            <img src="${i.f}" style="width:55px; height:55px; object-fit:cover" class="rounded-3 me-3">
+            <div class="flex-grow-1"><h6 class="mb-0 small fw-bold">${i.n}</h6><small class="text-muted">${i.v}</small></div>
+            <div class="text-end"><b>C$ ${i.p}</b><br><button class="btn btn-sm text-danger p-0" onclick="window.borrarItem(${idx})">✕</button></div>
+        </div>`).join('');
+    const total = window.carrito.reduce((s, i) => s + i.p, 0);
+    document.getElementById('c-count').innerText = window.carrito.length;
+    document.getElementById('c-total').innerText = "C$ " + total;
+    document.getElementById('total-val').innerText = "C$ " + total;
+};
+
+window.borrarItem = function(idx) { window.carrito.splice(idx, 1); window.actualizarCarrito(); };
+window.vaciarCarrito = function() { if(confirm("¿Vaciar pedido?")) { window.carrito = []; window.actualizarCarrito(); } };
+
+window.enviarWhatsApp = function() {
+    if(!window.carrito.length) return;
+    let m = `*PEDIDO: ${window.config.nombre_tienda}*\n` + (window.config.mensaje_base || "Hola! Quiero este pedido:\n\n");
+    window.carrito.forEach(i => m += `✅ *${i.n}* (${i.v}) - C$ ${i.p}\n`);
+    m += `\n*TOTAL: C$ ${window.carrito.reduce((s, i) => s + i.p, 0)}*`;
+    window.open(`https://wa.me/${window.config.celular.replace(/\s+/g,'')}?text=${encodeURIComponent(m)}`, '_blank');
+};
