@@ -1,4 +1,4 @@
-// Focuz Engine v2.4 - Lógica "Parent/Child" y Mapeo de Columnas K, L, M, I
+// Focuz Engine v2.4 - Lógica "Parent/Child" y Mapeo de Columnas K, L, M, 
 function initFocuz(PROD_LINK, CONF_LINK) {
     let config = {}, allProd = [], carrito = [], catAct = "Todas";
 
