@@ -1,8 +1,16 @@
-// Focuz Engine v4.1 - Pro: Ofertas Inteligentes, Feedback de Carrito y SKU
+// Focuz Sync v5.0 - Pro: Sincronización Inteligente y Flujo Optimizado
 window.allProd = [];
 window.carrito = [];
 window.config = {};
 window.catAct = "Todas";
+
+// --- FUNCIÓN DE LIMPIEZA DE PRECIOS (Punto 1 y 2 corregidos) ---
+// Esta función elimina comas y símbolos para que "45,000.00" sea un número real
+window.parsePrecioFocuz = function(val) {
+    if (!val) return 0;
+    let limpio = String(val).replace(/[^\d.]/g, ''); // Deja solo números y el punto decimal
+    return parseFloat(limpio) || 0;
+};
 
 window.initFocuz = function(PROD_LINK, CONF_LINK) {
     Papa.parse(CONF_LINK, {
@@ -17,7 +25,6 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 }
             });
 
-            // Configuración Global
             const nombreTienda = window.config.nombre_tienda || "Focuz Shop";
             const colorPrincipal = window.config.color_principal || "#4E0E86";
             const moneda = window.config.moneda || "C$";
@@ -51,12 +58,9 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
 };
 
 window.renderCats = function() {
-    // LÓGICA DE OFERTAS: Verificamos si hay algún producto con descuento
-    const tieneOfertas = window.allProd.some(p => p['Precio Descuento'] && parseFloat(p['Precio Descuento']) > 0);
-    
+    const tieneOfertas = window.allProd.some(p => window.parsePrecioFocuz(p['Precio Descuento']) > 0);
     let cats = ["Todas"];
-    if (tieneOfertas) cats.push("Ofertas"); // Inyectamos la categoría inteligente
-    
+    if (tieneOfertas) cats.push("Ofertas");
     const catsExcel = [...new Set(window.allProd.map(p => p.Category).filter(Boolean))];
     cats = cats.concat(catsExcel);
 
@@ -64,12 +68,17 @@ window.renderCats = function() {
     if (!catDiv) return;
 
     catDiv.innerHTML = cats.map(c =>
-        `<div class="cat-btn ${c === window.catAct ? 'active' : ''}" onclick="window.setCat('${c.replace(/'/g, "\\'")}')">${c}</div>`
+        `<div class="cat-btn ${c === window.catAct ? 'active' : ''}" data-cat="${c}" onclick="window.setCat('${c.replace(/'/g, "\\'")}')">${c}</div>`
     ).join('');
 };
 
 window.setCat = function(c) {
     window.catAct = c;
+    // --- CORRECCIÓN PUNTO 7: Sincronización de color en botones de categoría ---
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if(btn.getAttribute('data-cat') === c) btn.classList.add('active');
+    });
     window.filtrar();
 };
 
@@ -80,15 +89,13 @@ window.filtrar = function() {
     const filtered = window.allProd.filter(p => {
         const cumpleBusqueda = (p.Nombre || "").toLowerCase().includes(searchVal);
         let cumpleCat = false;
-
         if (window.catAct === "Todas") {
             cumpleCat = true;
         } else if (window.catAct === "Ofertas") {
-            cumpleCat = p['Precio Descuento'] && parseFloat(p['Precio Descuento']) > 0;
+            cumpleCat = window.parsePrecioFocuz(p['Precio Descuento']) > 0;
         } else {
             cumpleCat = p.Category === window.catAct;
         }
-
         return cumpleBusqueda && cumpleCat;
     });
 
@@ -103,23 +110,31 @@ window.filtrar = function() {
 
     productosDiv.innerHTML = Object.keys(groups).map(nombre => {
         const variants = groups[nombre];
-        const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "") || variants[0];
+        const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "" || v['Color o Estilo'] === "Único") || variants[0];
         const stockTotal = variants.reduce((acc, v) => acc + parseInt(v.Stock || 0), 0);
         const imagen = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
-        const precioBase = padre['Precio Descuento'] || padre.Precio || "0";
+        
+        // Uso de parsePrecioFocuz para evitar errores de miles
+        const pDesc = window.parsePrecioFocuz(padre['Precio Descuento']);
+        const pNorm = window.parsePrecioFocuz(padre.Precio);
+        const precioBase = pDesc > 0 ? pDesc : pNorm;
+
+        // --- CORRECCIÓN PUNTO 2: Fast-Add (Salto de Modal si es Único) ---
+        const esUnico = variants.length === 1 && (padre['Color o Estilo'] === "Único" || !padre['Color o Estilo']);
+        const funcionClick = esUnico ? `window.addAlCarrito('${padre.ID_unico}')` : `window.verDetalle('${nombre.replace(/'/g, "\\'")}')`;
 
         return `
         <div class="col-6 col-md-4 col-lg-3">
             <div class="p-card h-100 position-relative ${stockTotal <= 0 ? 'opacity-75' : ''}">
                 ${padre.Etiqueta ? `<span class="badge bg-danger position-absolute m-2" style="z-index:5">${padre.Etiqueta}</span>` : ""}
-                <img src="${imagen}" class="p-img" onclick="window.verDetalle('${nombre.replace(/'/g, "\\'")}')">
+                <img src="${imagen}" class="p-img" onclick="${funcionClick}">
                 <div class="p-3 text-center">
                     <h6 class="fw-bold small text-truncate mb-1">${nombre}</h6>
                     <p class="text-success fw-bold mb-2">
-                        ${variants.length > 1 ? 'Varias opciones' : `${moneda} ${precioBase}`}
+                        ${variants.length > 1 && !esUnico ? 'Varias opciones' : `${moneda} ${precioBase}`}
                     </p>
-                    <button class="btn btn-main btn-sm w-100 rounded-pill" ${stockTotal <= 0 ? 'disabled' : ''} onclick="window.verDetalle('${nombre.replace(/'/g, "\\'")}')">
-                        ${stockTotal <= 0 ? 'Agotado' : (variants.length > 1 ? 'Ver opciones' : '+ Agregar')}
+                    <button class="btn btn-main btn-sm w-100 rounded-pill" ${stockTotal <= 0 ? 'disabled' : ''} id="btn-main-${padre.ID_unico}" onclick="${funcionClick}">
+                        ${stockTotal <= 0 ? 'Agotado' : (variants.length > 1 && !esUnico ? 'Ver opciones' : '+ Agregar')}
                     </button>
                 </div>
             </div>
@@ -129,17 +144,14 @@ window.filtrar = function() {
 
 window.verDetalle = function(nombre) {
     const variants = window.allProd.filter(p => p.Nombre === nombre);
-    const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "") || variants[0];
+    const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "" || v['Color o Estilo'] === "Único") || variants[0];
     const moneda = window.config.moneda || "C$";
 
     if (document.getElementById('det-name')) document.getElementById('det-name').innerText = nombre;
     if (document.getElementById('det-desc')) document.getElementById('det-desc').innerText = padre['Descripción'] || "Sin descripción.";
     
-    // MOSTRAR CÓDIGO (SKU)
     const detCode = document.getElementById('det-code');
-    if (detCode) {
-        detCode.innerText = padre.codigo ? `COD: ${padre.codigo}` : "";
-    }
+    if (detCode) detCode.innerText = padre.codigo ? `COD: ${padre.codigo}` : "";
 
     const imagenPrincipal = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
     if (document.getElementById('det-img-main')) document.getElementById('det-img-main').src = imagenPrincipal;
@@ -162,19 +174,27 @@ window.verDetalle = function(nombre) {
                         <option value="" disabled selected>Seleccionar...</option>`;
         variants.forEach(v => {
             if (v['Color o Estilo']) {
-                const precioMostrado = v['Precio Descuento'] || v.Precio || "0";
+                const pDesc = window.parsePrecioFocuz(v['Precio Descuento']);
+                const pNorm = window.parsePrecioFocuz(v.Precio);
+                const precioMostrado = pDesc > 0 ? pDesc : pNorm;
                 const isOut = parseInt(v.Stock || 0) <= 0;
                 htmlSelector += `<option value="${v.ID_unico}" ${isOut ? 'disabled' : ''}>${v['Color o Estilo']} - ${moneda} ${precioMostrado} ${isOut ? '(Agotado)' : ''}</option>`;
             }
         });
         htmlSelector += `</select>`;
-        const minPrecio = Math.min(...variants.map(v => parseFloat(v['Precio Descuento'] || v.Precio || 0)));
+        const minPrecio = Math.min(...variants.map(v => {
+            const d = window.parsePrecioFocuz(v['Precio Descuento']);
+            const p = window.parsePrecioFocuz(v.Precio);
+            return d > 0 ? d : p;
+        }));
         if (detPrice) detPrice.innerText = `Desde ${moneda} ${minPrecio}`;
     } else {
-        const pFinal = padre['Precio Descuento'] || padre.Precio || "0";
+        const pDesc = window.parsePrecioFocuz(padre['Precio Descuento']);
+        const pNorm = window.parsePrecioFocuz(padre.Precio);
+        const pFinal = pDesc > 0 ? pDesc : pNorm;
         if (detPrice) {
-            detPrice.innerHTML = padre['Precio Descuento']
-                ? `<span class="text-muted text-decoration-line-through small">${moneda} ${padre.Precio}</span> ${moneda} ${pFinal}`
+            detPrice.innerHTML = pDesc > 0
+                ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pNorm}</span> ${moneda} ${pFinal}`
                 : `${moneda} ${pFinal}`;
         }
     }
@@ -199,10 +219,13 @@ window.updateVariantDetail = function(select) {
 
     const moneda = window.config.moneda || "C$";
     const detPrice = document.getElementById('det-price');
+    const pDesc = window.parsePrecioFocuz(p['Precio Descuento']);
+    const pNorm = window.parsePrecioFocuz(p.Precio);
+
     if (detPrice) {
-        detPrice.innerHTML = p['Precio Descuento']
-            ? `<span class="text-muted text-decoration-line-through small">${moneda} ${p.Precio}</span> ${moneda} ${p['Precio Descuento']}`
-            : `${moneda} ${p.Precio}`;
+        detPrice.innerHTML = pDesc > 0
+            ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pNorm}</span> ${moneda} ${pDesc}`
+            : `${moneda} ${pNorm}`;
     }
 
     const img = p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "";
@@ -222,38 +245,70 @@ window.addAlCarrito = function(id) {
     if (!p) return;
 
     const index = window.carrito.findIndex(item => String(item.id) === String(id));
+    const stockDisp = parseInt(p.Stock || 0);
+
     if (index > -1) {
-        window.carrito[index].cant += 1;
+        // --- CORRECCIÓN PUNTO 4: Muro de Stock en Add ---
+        if (window.carrito[index].cant < stockDisp) {
+            window.carrito[index].cant += 1;
+        } else {
+            alert("No hay más stock disponible de este producto.");
+            return;
+        }
     } else {
-        window.carrito.push({
-            id: String(p.ID_unico),
-            n: p.Nombre,
-            v: p['Color o Estilo'] || "Único",
-            p: parseFloat(p['Precio Descuento'] || p.Precio || 0),
-            f: p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "",
-            cant: 1
-        });
+        if (stockDisp > 0) {
+            const pDesc = window.parsePrecioFocuz(p['Precio Descuento']);
+            const pNorm = window.parsePrecioFocuz(p.Precio);
+            window.carrito.push({
+                id: String(p.ID_unico),
+                n: p.Nombre,
+                v: p['Color o Estilo'] || "Único",
+                p: pDesc > 0 ? pDesc : pNorm,
+                f: p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "",
+                cant: 1
+            });
+        }
     }
 
     window.actualizarCarrito();
 
-    // FEEDBACK VISUAL EN BOTÓN
-    const btn = document.getElementById('det-btn-add');
-    if (btn) {
-        const txtOriginal = btn.innerText;
-        btn.innerText = "¡AGREGADO! ✅";
-        btn.style.backgroundColor = "#28a745"; // Color verde éxito temporal
+    // Feedback visual en el botón correspondiente (ya sea del modal o de la card principal)
+    const btnModal = document.getElementById('det-btn-add');
+    const btnCard = document.getElementById(`btn-main-${id}`);
+    const btnAction = btnModal && btnModal.offsetParent !== null ? btnModal : btnCard;
+
+    if (btnAction) {
+        const txtOriginal = btnAction.innerText;
+        btnAction.innerText = "¡LISTO! ✅";
+        const oldBg = btnAction.style.backgroundColor;
+        btnAction.style.backgroundColor = "#28a745";
         
         setTimeout(() => {
-            btn.innerText = txtOriginal;
-            btn.style.backgroundColor = ""; // Vuelve al color del CSS
-            // Cerramos el modal después del feedback
-            const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
-            if (m) m.hide();
-        }, 800);
+            btnAction.innerText = txtOriginal;
+            btnAction.style.backgroundColor = oldBg;
+            const mElem = document.getElementById('detalleModal');
+            if (mElem && btnAction === btnModal) {
+                const m = bootstrap.Modal.getInstance(mElem);
+                if (m) m.hide();
+            }
+        }, 700);
     }
-    
-    // ELIMINADO: Ya no se abre el offcanvas automáticamente.
+};
+
+// --- CORRECCIÓN PUNTO 3 Y 4: Cambiar cantidad con + / - y bloqueo de Stock ---
+window.cambiarCant = function(idx, delta) {
+    const item = window.carrito[idx];
+    const pOriginal = window.allProd.find(v => String(v.ID_unico) === String(item.id));
+    const stockMax = parseInt(pOriginal.Stock || 0);
+
+    if (delta > 0 && item.cant < stockMax) {
+        item.cant += 1;
+    } else if (delta < 0 && item.cant > 1) {
+        item.cant -= 1;
+    } else if (delta > 0) {
+        alert("Límite de stock alcanzado.");
+    }
+    window.actualizarCarrito();
 };
 
 window.actualizarCarrito = function() {
@@ -261,16 +316,30 @@ window.actualizarCarrito = function() {
     const moneda = window.config.moneda || "C$";
 
     if (list) {
-        list.innerHTML = window.carrito.map((i, idx) => `
+        list.innerHTML = window.carrito.map((i, idx) => {
+            // Buscamos stock para deshabilitar el botón + si llega al tope
+            const pOrig = window.allProd.find(v => String(v.ID_unico) === String(i.id));
+            const stockMax = parseInt(pOrig.Stock || 0);
+            const disablePlus = i.cant >= stockMax ? 'disabled opacity-50' : '';
+
+            return `
             <div class="d-flex align-items-center mb-3 border-bottom pb-2">
-                <img src="${i.f}" style="width:55px; height:55px; object-fit:cover" class="rounded-3 me-3">
+                <img src="${i.f}" style="width:50px; height:50px; object-fit:cover" class="rounded-3 me-3">
                 <div class="flex-grow-1">
-                    <h6 class="mb-0 small fw-bold">${i.n} ${i.cant > 1 ? `<span class="badge bg-secondary">x${i.cant}</span>` : ''}</h6>
-                    <small class="text-muted">${i.v}</small>
+                    <h6 class="mb-0 small fw-bold">${i.n}</h6>
+                    <small class="text-muted">${i.v === 'Único' ? '' : i.v}</small>
+                    <div class="d-flex align-items-center mt-1">
+                        <button class="btn btn-outline-secondary btn-xs py-0 px-2" onclick="window.cambiarCant(${idx}, -1)">-</button>
+                        <span class="mx-2 small fw-bold">${i.cant}</span>
+                        <button class="btn btn-outline-secondary btn-xs py-0 px-2 ${disablePlus}" onclick="window.cambiarCant(${idx}, 1)">+</button>
+                    </div>
                 </div>
-                <div class="text-end"><b>${moneda} ${i.p * i.cant}</b><br><button class="btn btn-sm text-danger p-0" onclick="window.borrarItem(${idx})">✕</button></div>
-            </div>
-        `).join('');
+                <div class="text-end">
+                    <b class="small">${moneda} ${i.p * i.cant}</b><br>
+                    <button class="btn btn-sm text-danger p-0 mt-1" onclick="window.borrarItem(${idx})"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     const total = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
@@ -302,10 +371,14 @@ window.enviarWhatsApp = function() {
 
     let m = `${saludo}\n\n`;
     window.carrito.forEach(i => {
-        m += `✅ *${i.n}* (x${i.cant}) - ${i.v} | ${moneda} ${i.p * i.cant}\n`;
+        // --- CORRECCIÓN PUNTO 6: Limpiar "Único" del mensaje ---
+        const varianteTxt = i.v === "Único" ? "" : ` - ${i.v}`;
+        // --- CORRECCIÓN PUNTO 5: Aire (doble salto de línea entre productos) ---
+        m += `✅ *${i.n}* (x${i.cant})${varianteTxt} | ${moneda} ${i.p * i.cant}\n\n`;
     });
+    
     const granTotal = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
-    m += `\n*TOTAL: ${moneda} ${granTotal}*`;
+    m += `*TOTAL: ${moneda} ${granTotal}*`;
 
     window.open(`https://wa.me/${numero}?text=${encodeURIComponent(m)}`, '_blank');
 };
