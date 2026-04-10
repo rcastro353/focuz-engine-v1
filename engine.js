@@ -1,14 +1,15 @@
-// Focuz Sync v5.0 - Pro: Sincronización Inteligente y Flujo Optimizado
+// Focuz Sync v5.1 - Pro: Lógica de Interacción Refinada y Blindaje Total
 window.allProd = [];
 window.carrito = [];
 window.config = {};
 window.catAct = "Todas";
 
-// --- FUNCIÓN DE LIMPIEZA DE PRECIOS (Punto 1 y 2 corregidos) ---
-// Esta función elimina comas y símbolos para que "45,000.00" sea un número real
+// --- PUNTO 1: BLINDAJE DE PRECIOS MEJORADO ---
 window.parsePrecioFocuz = function(val) {
-    if (!val) return 0;
-    let limpio = String(val).replace(/[^\d.]/g, ''); // Deja solo números y el punto decimal
+    if (val === undefined || val === null || val === "") return 0;
+    // Eliminamos todo lo que no sea número o punto decimal
+    let limpio = String(val).replace(/[^\d.]/g, ''); 
+    // Si después de limpiar queda algo, lo convertimos a flotante
     return parseFloat(limpio) || 0;
 };
 
@@ -74,7 +75,6 @@ window.renderCats = function() {
 
 window.setCat = function(c) {
     window.catAct = c;
-    // --- CORRECCIÓN PUNTO 7: Sincronización de color en botones de categoría ---
     document.querySelectorAll('.cat-btn').forEach(btn => {
         btn.classList.remove('active');
         if(btn.getAttribute('data-cat') === c) btn.classList.add('active');
@@ -89,13 +89,9 @@ window.filtrar = function() {
     const filtered = window.allProd.filter(p => {
         const cumpleBusqueda = (p.Nombre || "").toLowerCase().includes(searchVal);
         let cumpleCat = false;
-        if (window.catAct === "Todas") {
-            cumpleCat = true;
-        } else if (window.catAct === "Ofertas") {
-            cumpleCat = window.parsePrecioFocuz(p['Precio Descuento']) > 0;
-        } else {
-            cumpleCat = p.Category === window.catAct;
-        }
+        if (window.catAct === "Todas") cumpleCat = true;
+        else if (window.catAct === "Ofertas") cumpleCat = window.parsePrecioFocuz(p['Precio Descuento']) > 0;
+        else cumpleCat = p.Category === window.catAct;
         return cumpleBusqueda && cumpleCat;
     });
 
@@ -114,26 +110,29 @@ window.filtrar = function() {
         const stockTotal = variants.reduce((acc, v) => acc + parseInt(v.Stock || 0), 0);
         const imagen = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
         
-        // Uso de parsePrecioFocuz para evitar errores de miles
         const pDesc = window.parsePrecioFocuz(padre['Precio Descuento']);
         const pNorm = window.parsePrecioFocuz(padre.Precio);
         const precioBase = pDesc > 0 ? pDesc : pNorm;
 
-        // --- CORRECCIÓN PUNTO 2: Fast-Add (Salto de Modal si es Único) ---
+        // --- PUNTO 2 CORREGIDO: Lógica de Botón vs Imagen ---
         const esUnico = variants.length === 1 && (padre['Color o Estilo'] === "Único" || !padre['Color o Estilo']);
-        const funcionClick = esUnico ? `window.addAlCarrito('${padre.ID_unico}')` : `window.verDetalle('${nombre.replace(/'/g, "\\'")}')`;
+        
+        // Imagen siempre abre detalles
+        const clickImagen = `window.verDetalle('${nombre.replace(/'/g, "\\'")}')`;
+        // Botón agrega directo si es único, sino abre detalles
+        const clickBoton = esUnico ? `window.addAlCarrito('${padre.ID_unico}')` : `window.verDetalle('${nombre.replace(/'/g, "\\'")}')`;
 
         return `
         <div class="col-6 col-md-4 col-lg-3">
             <div class="p-card h-100 position-relative ${stockTotal <= 0 ? 'opacity-75' : ''}">
                 ${padre.Etiqueta ? `<span class="badge bg-danger position-absolute m-2" style="z-index:5">${padre.Etiqueta}</span>` : ""}
-                <img src="${imagen}" class="p-img" onclick="${funcionClick}">
+                <img src="${imagen}" class="p-img" onclick="${clickImagen}">
                 <div class="p-3 text-center">
                     <h6 class="fw-bold small text-truncate mb-1">${nombre}</h6>
                     <p class="text-success fw-bold mb-2">
                         ${variants.length > 1 && !esUnico ? 'Varias opciones' : `${moneda} ${precioBase}`}
                     </p>
-                    <button class="btn btn-main btn-sm w-100 rounded-pill" ${stockTotal <= 0 ? 'disabled' : ''} id="btn-main-${padre.ID_unico}" onclick="${funcionClick}">
+                    <button class="btn btn-main btn-sm w-100 rounded-pill" ${stockTotal <= 0 ? 'disabled' : ''} id="btn-main-${padre.ID_unico}" onclick="${clickBoton}">
                         ${stockTotal <= 0 ? 'Agotado' : (variants.length > 1 && !esUnico ? 'Ver opciones' : '+ Agregar')}
                     </button>
                 </div>
@@ -147,23 +146,21 @@ window.verDetalle = function(nombre) {
     const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "" || v['Color o Estilo'] === "Único") || variants[0];
     const moneda = window.config.moneda || "C$";
 
-    if (document.getElementById('det-name')) document.getElementById('det-name').innerText = nombre;
-    if (document.getElementById('det-desc')) document.getElementById('det-desc').innerText = padre['Descripción'] || "Sin descripción.";
+    document.getElementById('det-name').innerText = nombre;
+    document.getElementById('det-desc').innerText = padre['Descripción'] || "Sin descripción.";
     
     const detCode = document.getElementById('det-code');
     if (detCode) detCode.innerText = padre.codigo ? `COD: ${padre.codigo}` : "";
 
     const imagenPrincipal = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
-    if (document.getElementById('det-img-main')) document.getElementById('det-img-main').src = imagenPrincipal;
+    document.getElementById('det-img-main').src = imagenPrincipal;
 
     const fotos = [padre['Imagen 1'], padre['Imagen 2'], padre['Imagen 3'], padre['Imagen_App'], padre['Imagen_excel']]
                   .filter((f, i, arr) => f && f.trim() !== "" && arr.indexOf(f) === i);
 
-    if (document.getElementById('det-thumbs')) {
-        document.getElementById('det-thumbs').innerHTML = fotos.map(f =>
-            `<img src="${f}" class="thumb-img" onclick="document.getElementById('det-img-main').src='${f}'">`
-        ).join('');
-    }
+    document.getElementById('det-thumbs').innerHTML = fotos.map(f =>
+        `<img src="${f}" class="thumb-img" onclick="document.getElementById('det-img-main').src='${f}'">`
+    ).join('');
 
     let htmlSelector = "";
     const detPrice = document.getElementById('det-price');
@@ -174,9 +171,9 @@ window.verDetalle = function(nombre) {
                         <option value="" disabled selected>Seleccionar...</option>`;
         variants.forEach(v => {
             if (v['Color o Estilo']) {
-                const pDesc = window.parsePrecioFocuz(v['Precio Descuento']);
-                const pNorm = window.parsePrecioFocuz(v.Precio);
-                const precioMostrado = pDesc > 0 ? pDesc : pNorm;
+                const pD = window.parsePrecioFocuz(v['Precio Descuento']);
+                const pN = window.parsePrecioFocuz(v.Precio);
+                const precioMostrado = pD > 0 ? pD : pN;
                 const isOut = parseInt(v.Stock || 0) <= 0;
                 htmlSelector += `<option value="${v.ID_unico}" ${isOut ? 'disabled' : ''}>${v['Color o Estilo']} - ${moneda} ${precioMostrado} ${isOut ? '(Agotado)' : ''}</option>`;
             }
@@ -187,27 +184,23 @@ window.verDetalle = function(nombre) {
             const p = window.parsePrecioFocuz(v.Precio);
             return d > 0 ? d : p;
         }));
-        if (detPrice) detPrice.innerText = `Desde ${moneda} ${minPrecio}`;
+        detPrice.innerText = `Desde ${moneda} ${minPrecio}`;
     } else {
-        const pDesc = window.parsePrecioFocuz(padre['Precio Descuento']);
-        const pNorm = window.parsePrecioFocuz(padre.Precio);
-        const pFinal = pDesc > 0 ? pDesc : pNorm;
-        if (detPrice) {
-            detPrice.innerHTML = pDesc > 0
-                ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pNorm}</span> ${moneda} ${pFinal}`
-                : `${moneda} ${pFinal}`;
-        }
+        const pD = window.parsePrecioFocuz(padre['Precio Descuento']);
+        const pN = window.parsePrecioFocuz(padre.Precio);
+        const pFinal = pD > 0 ? pD : pN;
+        detPrice.innerHTML = pD > 0
+            ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pN}</span> ${moneda} ${pFinal}`
+            : `${moneda} ${pFinal}`;
     }
 
-    if (document.getElementById('det-selector-area')) document.getElementById('det-selector-area').innerHTML = htmlSelector;
+    document.getElementById('det-selector-area').innerHTML = htmlSelector;
 
     const btn = document.getElementById('det-btn-add');
-    if (btn) {
-        const stockPadre = parseInt(padre.Stock || 0);
-        btn.disabled = (variants.length === 1 && stockPadre <= 0) || variants.length > 1;
-        btn.innerText = (variants.length === 1 && stockPadre <= 0) ? "AGOTADO" : (variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO");
-        btn.onclick = (variants.length === 1 && stockPadre > 0) ? () => window.addAlCarrito(padre.ID_unico) : null;
-    }
+    const stockPadre = parseInt(padre.Stock || 0);
+    btn.disabled = (variants.length === 1 && stockPadre <= 0) || variants.length > 1;
+    btn.innerText = (variants.length === 1 && stockPadre <= 0) ? "AGOTADO" : (variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO");
+    btn.onclick = (variants.length === 1 && stockPadre > 0) ? () => window.addAlCarrito(padre.ID_unico) : null;
 
     new bootstrap.Modal(document.getElementById('detalleModal')).show();
 };
@@ -219,25 +212,21 @@ window.updateVariantDetail = function(select) {
 
     const moneda = window.config.moneda || "C$";
     const detPrice = document.getElementById('det-price');
-    const pDesc = window.parsePrecioFocuz(p['Precio Descuento']);
-    const pNorm = window.parsePrecioFocuz(p.Precio);
+    const pD = window.parsePrecioFocuz(p['Precio Descuento']);
+    const pN = window.parsePrecioFocuz(p.Precio);
 
-    if (detPrice) {
-        detPrice.innerHTML = pDesc > 0
-            ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pNorm}</span> ${moneda} ${pDesc}`
-            : `${moneda} ${pNorm}`;
-    }
+    detPrice.innerHTML = pD > 0
+        ? `<span class="text-muted text-decoration-line-through small">${moneda} ${pN}</span> ${moneda} ${pD}`
+        : `${moneda} ${pN}`;
 
     const img = p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "";
-    if (img && document.getElementById('det-img-main')) document.getElementById('det-img-main').src = img;
+    if (img) document.getElementById('det-img-main').src = img;
 
     const isOut = parseInt(p.Stock || 0) <= 0;
     const btn = document.getElementById('det-btn-add');
-    if (btn) {
-        btn.disabled = isOut;
-        btn.innerText = isOut ? "AGOTADO" : "AGREGAR AL CARRITO";
-        btn.onclick = isOut ? null : () => window.addAlCarrito(id);
-    }
+    btn.disabled = isOut;
+    btn.innerText = isOut ? "AGOTADO" : "AGREGAR AL CARRITO";
+    btn.onclick = isOut ? null : () => window.addAlCarrito(id);
 };
 
 window.addAlCarrito = function(id) {
@@ -247,55 +236,55 @@ window.addAlCarrito = function(id) {
     const index = window.carrito.findIndex(item => String(item.id) === String(id));
     const stockDisp = parseInt(p.Stock || 0);
 
+    // Si no hay stock, salimos sin hacer NADA (ni siquiera feedback)
+    if (stockDisp <= 0) return;
+
     if (index > -1) {
-        // --- CORRECCIÓN PUNTO 4: Muro de Stock en Add ---
         if (window.carrito[index].cant < stockDisp) {
             window.carrito[index].cant += 1;
         } else {
-            alert("No hay más stock disponible de este producto.");
+            alert("Límite de stock alcanzado.");
             return;
         }
     } else {
-        if (stockDisp > 0) {
-            const pDesc = window.parsePrecioFocuz(p['Precio Descuento']);
-            const pNorm = window.parsePrecioFocuz(p.Precio);
-            window.carrito.push({
-                id: String(p.ID_unico),
-                n: p.Nombre,
-                v: p['Color o Estilo'] || "Único",
-                p: pDesc > 0 ? pDesc : pNorm,
-                f: p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "",
-                cant: 1
-            });
-        }
+        const pD = window.parsePrecioFocuz(p['Precio Descuento']);
+        const pN = window.parsePrecioFocuz(p.Precio);
+        window.carrito.push({
+            id: String(p.ID_unico),
+            n: p.Nombre,
+            v: p['Color o Estilo'] || "Único",
+            p: pD > 0 ? pD : pN,
+            f: p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "",
+            cant: 1
+        });
     }
 
     window.actualizarCarrito();
 
-    // Feedback visual en el botón correspondiente (ya sea del modal o de la card principal)
+    // FEEDBACK VISUAL ÚNICAMENTE SI SE AGREGÓ
     const btnModal = document.getElementById('det-btn-add');
     const btnCard = document.getElementById(`btn-main-${id}`);
-    const btnAction = btnModal && btnModal.offsetParent !== null ? btnModal : btnCard;
+    
+    // Si el modal está abierto, usamos el botón del modal, sino el de la tarjeta
+    const modalAbierto = document.getElementById('detalleModal').classList.contains('show');
+    const btnAction = modalAbierto ? btnModal : btnCard;
 
     if (btnAction) {
         const txtOriginal = btnAction.innerText;
         btnAction.innerText = "¡LISTO! ✅";
-        const oldBg = btnAction.style.backgroundColor;
-        btnAction.style.backgroundColor = "#28a745";
+        btnAction.classList.replace('btn-main', 'btn-success');
         
         setTimeout(() => {
             btnAction.innerText = txtOriginal;
-            btnAction.style.backgroundColor = oldBg;
-            const mElem = document.getElementById('detalleModal');
-            if (mElem && btnAction === btnModal) {
-                const m = bootstrap.Modal.getInstance(mElem);
+            btnAction.classList.replace('btn-success', 'btn-main');
+            if (modalAbierto) {
+                const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
                 if (m) m.hide();
             }
         }, 700);
     }
 };
 
-// --- CORRECCIÓN PUNTO 3 Y 4: Cambiar cantidad con + / - y bloqueo de Stock ---
 window.cambiarCant = function(idx, delta) {
     const item = window.carrito[idx];
     const pOriginal = window.allProd.find(v => String(v.ID_unico) === String(item.id));
@@ -305,8 +294,6 @@ window.cambiarCant = function(idx, delta) {
         item.cant += 1;
     } else if (delta < 0 && item.cant > 1) {
         item.cant -= 1;
-    } else if (delta > 0) {
-        alert("Límite de stock alcanzado.");
     }
     window.actualizarCarrito();
 };
@@ -317,7 +304,6 @@ window.actualizarCarrito = function() {
 
     if (list) {
         list.innerHTML = window.carrito.map((i, idx) => {
-            // Buscamos stock para deshabilitar el botón + si llega al tope
             const pOrig = window.allProd.find(v => String(v.ID_unico) === String(i.id));
             const stockMax = parseInt(pOrig.Stock || 0);
             const disablePlus = i.cant >= stockMax ? 'disabled opacity-50' : '';
@@ -371,9 +357,7 @@ window.enviarWhatsApp = function() {
 
     let m = `${saludo}\n\n`;
     window.carrito.forEach(i => {
-        // --- CORRECCIÓN PUNTO 6: Limpiar "Único" del mensaje ---
         const varianteTxt = i.v === "Único" ? "" : ` - ${i.v}`;
-        // --- CORRECCIÓN PUNTO 5: Aire (doble salto de línea entre productos) ---
         m += `✅ *${i.n}* (x${i.cant})${varianteTxt} | ${moneda} ${i.p * i.cant}\n\n`;
     });
     
