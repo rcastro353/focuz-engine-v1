@@ -1,4 +1,4 @@
-// Focuz Engine v4.0 - plantilla base clonable
+// Focuz Engine v4.1 - Pro: Ofertas Inteligentes, Feedback de Carrito y SKU
 window.allProd = [];
 window.carrito = [];
 window.config = {};
@@ -17,35 +17,24 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 }
             });
 
-            // Config global
+            // Configuración Global
             const nombreTienda = window.config.nombre_tienda || "Focuz Shop";
             const colorPrincipal = window.config.color_principal || "#4E0E86";
-            const portada = window.config.portada || "";
-            const favicon = window.config.favicon || "";
             const moneda = window.config.moneda || "C$";
 
             document.documentElement.style.setProperty('--p-color', colorPrincipal);
             document.title = nombreTienda;
 
-            const brandName = document.getElementById('brand-name');
-            if (brandName) brandName.innerText = nombreTienda;
-
-            const dynTitle = document.getElementById('dinamic-title');
-            if (dynTitle) dynTitle.innerText = nombreTienda;
-
-            const hero = document.getElementById('hero');
-            if (hero && portada) hero.style.backgroundImage = `url('${portada}')`;
-
-            const fav = document.getElementById('favicon');
-            if (fav && favicon) fav.href = favicon;
+            if (document.getElementById('brand-name')) document.getElementById('brand-name').innerText = nombreTienda;
+            if (document.getElementById('dinamic-title')) document.getElementById('dinamic-title').innerText = nombreTienda;
+            if (document.getElementById('hero') && window.config.portada) document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
+            if (document.getElementById('favicon') && window.config.favicon) document.getElementById('favicon').href = window.config.favicon;
 
             let socHTML = '';
             if (window.config.facebook) socHTML += `<a href="${window.config.facebook}" target="_blank"><i class="fab fa-facebook"></i></a>`;
             if (window.config.instagram) socHTML += `<a href="${window.config.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>`;
             if (window.config.tiktok) socHTML += `<a href="${window.config.tiktok}" target="_blank"><i class="fab fa-tiktok"></i></a>`;
-
-            const socials = document.getElementById('socials');
-            if (socials) socials.innerHTML = socHTML;
+            if (document.getElementById('socials')) document.getElementById('socials').innerHTML = socHTML;
 
             Papa.parse(PROD_LINK, {
                 download: true,
@@ -62,7 +51,15 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
 };
 
 window.renderCats = function() {
-    const cats = ["Todas", ...new Set(window.allProd.map(p => p.Category).filter(Boolean))];
+    // LÓGICA DE OFERTAS: Verificamos si hay algún producto con descuento
+    const tieneOfertas = window.allProd.some(p => p['Precio Descuento'] && parseFloat(p['Precio Descuento']) > 0);
+    
+    let cats = ["Todas"];
+    if (tieneOfertas) cats.push("Ofertas"); // Inyectamos la categoría inteligente
+    
+    const catsExcel = [...new Set(window.allProd.map(p => p.Category).filter(Boolean))];
+    cats = cats.concat(catsExcel);
+
     const catDiv = document.getElementById('categories');
     if (!catDiv) return;
 
@@ -77,14 +74,23 @@ window.setCat = function(c) {
 };
 
 window.filtrar = function() {
-    const searchInput = document.getElementById('search');
-    const searchVal = searchInput ? searchInput.value.toLowerCase() : "";
+    const searchVal = document.getElementById('search') ? document.getElementById('search').value.toLowerCase() : "";
     const moneda = window.config.moneda || "C$";
 
-    const filtered = window.allProd.filter(p =>
-        (window.catAct === "Todas" || p.Category === window.catAct) &&
-        (p.Nombre || "").toLowerCase().includes(searchVal)
-    );
+    const filtered = window.allProd.filter(p => {
+        const cumpleBusqueda = (p.Nombre || "").toLowerCase().includes(searchVal);
+        let cumpleCat = false;
+
+        if (window.catAct === "Todas") {
+            cumpleCat = true;
+        } else if (window.catAct === "Ofertas") {
+            cumpleCat = p['Precio Descuento'] && parseFloat(p['Precio Descuento']) > 0;
+        } else {
+            cumpleCat = p.Category === window.catAct;
+        }
+
+        return cumpleBusqueda && cumpleCat;
+    });
 
     const groups = filtered.reduce((acc, p) => {
         if (!acc[p.Nombre]) acc[p.Nombre] = [];
@@ -92,21 +98,20 @@ window.filtrar = function() {
         return acc;
     }, {});
 
-    const productos = document.getElementById('productos');
-    if (!productos) return;
+    const productosDiv = document.getElementById('productos');
+    if (!productosDiv) return;
 
-    productos.innerHTML = Object.keys(groups).map(nombre => {
+    productosDiv.innerHTML = Object.keys(groups).map(nombre => {
         const variants = groups[nombre];
         const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "") || variants[0];
         const stockTotal = variants.reduce((acc, v) => acc + parseInt(v.Stock || 0), 0);
-        const etiqueta = padre.Etiqueta || "";
         const imagen = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
         const precioBase = padre['Precio Descuento'] || padre.Precio || "0";
 
         return `
         <div class="col-6 col-md-4 col-lg-3">
             <div class="p-card h-100 position-relative ${stockTotal <= 0 ? 'opacity-75' : ''}">
-                ${etiqueta ? `<span class="badge bg-danger position-absolute m-2" style="z-index:5">${etiqueta}</span>` : ""}
+                ${padre.Etiqueta ? `<span class="badge bg-danger position-absolute m-2" style="z-index:5">${padre.Etiqueta}</span>` : ""}
                 <img src="${imagen}" class="p-img" onclick="window.verDetalle('${nombre.replace(/'/g, "\\'")}')">
                 <div class="p-3 text-center">
                     <h6 class="fw-bold small text-truncate mb-1">${nombre}</h6>
@@ -127,30 +132,23 @@ window.verDetalle = function(nombre) {
     const padre = variants.find(v => !v['Color o Estilo'] || v['Color o Estilo'].trim() === "") || variants[0];
     const moneda = window.config.moneda || "C$";
 
-    const detName = document.getElementById('det-name');
-    if (detName) detName.innerText = nombre;
-
-    const detDesc = document.getElementById('det-desc');
-    if (detDesc) detDesc.innerText = padre['Descripción'] || "Sin descripción.";
+    if (document.getElementById('det-name')) document.getElementById('det-name').innerText = nombre;
+    if (document.getElementById('det-desc')) document.getElementById('det-desc').innerText = padre['Descripción'] || "Sin descripción.";
+    
+    // MOSTRAR CÓDIGO (SKU)
+    const detCode = document.getElementById('det-code');
+    if (detCode) {
+        detCode.innerText = padre.codigo ? `COD: ${padre.codigo}` : "";
+    }
 
     const imagenPrincipal = padre['Imagen 1'] || padre['Imagen_App'] || padre['Imagen_excel'] || "";
-    const detImgMain = document.getElementById('det-img-main');
-    if (detImgMain) detImgMain.src = imagenPrincipal;
+    if (document.getElementById('det-img-main')) document.getElementById('det-img-main').src = imagenPrincipal;
 
-    const fotos = [
-        padre['Imagen 1'],
-        padre['Imagen 2'],
-        padre['Imagen 3'],
-        padre['Imagen_App'],
-        padre['Imagen_App_1'],
-        padre['Imagen_App_2'],
-        padre['Imagen_App_3'],
-        padre['Imagen_excel']
-    ].filter((f, i, arr) => f && f.trim() !== "" && arr.indexOf(f) === i);
+    const fotos = [padre['Imagen 1'], padre['Imagen 2'], padre['Imagen 3'], padre['Imagen_App'], padre['Imagen_excel']]
+                  .filter((f, i, arr) => f && f.trim() !== "" && arr.indexOf(f) === i);
 
-    const thumbs = document.getElementById('det-thumbs');
-    if (thumbs) {
-        thumbs.innerHTML = fotos.map(f =>
+    if (document.getElementById('det-thumbs')) {
+        document.getElementById('det-thumbs').innerHTML = fotos.map(f =>
             `<img src="${f}" class="thumb-img" onclick="document.getElementById('det-img-main').src='${f}'">`
         ).join('');
     }
@@ -162,7 +160,6 @@ window.verDetalle = function(nombre) {
         htmlSelector = `<label class="small fw-bold mb-1">Elige una opción:</label>
                         <select id="variant-select" class="form-select mb-3 rounded-3" onchange="window.updateVariantDetail(this)">
                         <option value="" disabled selected>Seleccionar...</option>`;
-
         variants.forEach(v => {
             if (v['Color o Estilo']) {
                 const precioMostrado = v['Precio Descuento'] || v.Precio || "0";
@@ -170,9 +167,7 @@ window.verDetalle = function(nombre) {
                 htmlSelector += `<option value="${v.ID_unico}" ${isOut ? 'disabled' : ''}>${v['Color o Estilo']} - ${moneda} ${precioMostrado} ${isOut ? '(Agotado)' : ''}</option>`;
             }
         });
-
         htmlSelector += `</select>`;
-
         const minPrecio = Math.min(...variants.map(v => parseFloat(v['Precio Descuento'] || v.Precio || 0)));
         if (detPrice) detPrice.innerText = `Desde ${moneda} ${minPrecio}`;
     } else {
@@ -184,25 +179,14 @@ window.verDetalle = function(nombre) {
         }
     }
 
-    const selectorArea = document.getElementById('det-selector-area');
-    if (selectorArea) selectorArea.innerHTML = htmlSelector;
+    if (document.getElementById('det-selector-area')) document.getElementById('det-selector-area').innerHTML = htmlSelector;
 
     const btn = document.getElementById('det-btn-add');
     if (btn) {
         const stockPadre = parseInt(padre.Stock || 0);
-
-        if (variants.length === 1 && stockPadre <= 0) {
-            btn.disabled = true;
-            btn.innerText = "PRODUCTO AGOTADO";
-            btn.onclick = null;
-        } else {
-            btn.disabled = variants.length > 1;
-            btn.innerText = variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO";
-        }
-
-        if (variants.length === 1 && stockPadre > 0) {
-            btn.onclick = () => window.addAlCarrito(padre.ID_unico);
-        }
+        btn.disabled = (variants.length === 1 && stockPadre <= 0) || variants.length > 1;
+        btn.innerText = (variants.length === 1 && stockPadre <= 0) ? "AGOTADO" : (variants.length > 1 ? "SELECCIONA UNA OPCIÓN" : "AGREGAR AL CARRITO");
+        btn.onclick = (variants.length === 1 && stockPadre > 0) ? () => window.addAlCarrito(padre.ID_unico) : null;
     }
 
     new bootstrap.Modal(document.getElementById('detalleModal')).show();
@@ -210,7 +194,7 @@ window.verDetalle = function(nombre) {
 
 window.updateVariantDetail = function(select) {
     const id = select.value;
-    const p = window.allProd.find(v => v.ID_unico == id);
+    const p = window.allProd.find(v => String(v.ID_unico) === String(id));
     if (!p) return;
 
     const moneda = window.config.moneda || "C$";
@@ -222,10 +206,7 @@ window.updateVariantDetail = function(select) {
     }
 
     const img = p['Imagen 1'] || p['Imagen_App'] || p['Imagen_excel'] || "";
-    if (img) {
-        const detImgMain = document.getElementById('det-img-main');
-        if (detImgMain) detImgMain.src = img;
-    }
+    if (img && document.getElementById('det-img-main')) document.getElementById('det-img-main').src = img;
 
     const isOut = parseInt(p.Stock || 0) <= 0;
     const btn = document.getElementById('det-btn-add');
@@ -237,16 +218,15 @@ window.updateVariantDetail = function(select) {
 };
 
 window.addAlCarrito = function(id) {
-    const p = window.allProd.find(v => v.ID_unico == id);
+    const p = window.allProd.find(v => String(v.ID_unico) === String(id));
     if (!p) return;
 
-    const index = window.carrito.findIndex(item => item.id === id);
-
+    const index = window.carrito.findIndex(item => String(item.id) === String(id));
     if (index > -1) {
         window.carrito[index].cant += 1;
     } else {
         window.carrito.push({
-            id: p.ID_unico,
+            id: String(p.ID_unico),
             n: p.Nombre,
             v: p['Color o Estilo'] || "Único",
             p: parseFloat(p['Precio Descuento'] || p.Precio || 0),
@@ -257,14 +237,23 @@ window.addAlCarrito = function(id) {
 
     window.actualizarCarrito();
 
-    const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
-    if (m) m.hide();
-
-    const cartEl = document.getElementById('cart');
-    if (cartEl) {
-        const bsOffcanvas = new bootstrap.Offcanvas(cartEl);
-        bsOffcanvas.show();
+    // FEEDBACK VISUAL EN BOTÓN
+    const btn = document.getElementById('det-btn-add');
+    if (btn) {
+        const txtOriginal = btn.innerText;
+        btn.innerText = "¡AGREGADO! ✅";
+        btn.style.backgroundColor = "#28a745"; // Color verde éxito temporal
+        
+        setTimeout(() => {
+            btn.innerText = txtOriginal;
+            btn.style.backgroundColor = ""; // Vuelve al color del CSS
+            // Cerramos el modal después del feedback
+            const m = bootstrap.Modal.getInstance(document.getElementById('detalleModal'));
+            if (m) m.hide();
+        }, 800);
     }
+    
+    // ELIMINADO: Ya no se abre el offcanvas automáticamente.
 };
 
 window.actualizarCarrito = function() {
@@ -287,14 +276,9 @@ window.actualizarCarrito = function() {
     const total = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
     const totalItems = window.carrito.reduce((s, i) => s + i.cant, 0);
 
-    const cCount = document.getElementById('c-count');
-    if (cCount) cCount.innerText = totalItems;
-
-    const cTotal = document.getElementById('c-total');
-    if (cTotal) cTotal.innerText = `${moneda} ${total}`;
-
-    const totalVal = document.getElementById('total-val');
-    if (totalVal) totalVal.innerText = `${moneda} ${total}`;
+    if (document.getElementById('c-count')) document.getElementById('c-count').innerText = totalItems;
+    if (document.getElementById('c-total')) document.getElementById('c-total').innerText = `${moneda} ${total}`;
+    if (document.getElementById('total-val')) document.getElementById('total-val').innerText = `${moneda} ${total}`;
 };
 
 window.borrarItem = function(idx) {
@@ -317,11 +301,9 @@ window.enviarWhatsApp = function() {
     const numero = (window.config.celular || "").replace(/\s+/g, '');
 
     let m = `${saludo}\n\n`;
-
     window.carrito.forEach(i => {
         m += `✅ *${i.n}* (x${i.cant}) - ${i.v} | ${moneda} ${i.p * i.cant}\n`;
     });
-
     const granTotal = window.carrito.reduce((s, i) => s + (i.p * i.cant), 0);
     m += `\n*TOTAL: ${moneda} ${granTotal}*`;
 
