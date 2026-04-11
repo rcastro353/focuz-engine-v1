@@ -1,15 +1,116 @@
-:root { --p-color: #25d366; }
-body { font-family: 'Outfit', sans-serif; background-color: #f3f5f7; padding-bottom: 120px; }
-.hero { width: 100%; height: 260px; background-size: cover; background-position: center; border-radius: 0 0 30px 30px; margin-bottom: 25px; box-shadow: 0 10px 20px rgba(0,0,0,0.1); background-color: #ccc; }
-.cat-btn { background: white; border: 1px solid #ddd; padding: 8px 22px; border-radius: 50px; white-space: nowrap; cursor: pointer; transition: 0.3s; }
-.cat-btn.active { background: var(--p-color) !important; color: white !important; border-color: var(--p-color); }
-.p-card { border: none; border-radius: 20px; background: white; overflow: hidden; box-shadow: 0 5px 15px rgba(0,0,0,0.03); transition: 0.3s; }
+/* Focuz Sync v5.2 - Estilos Globales Dinámicos */
+:root { 
+    --p-color: #25d366; 
+    --p-contrast: #ffffff; /* Este lo cambiará el Engine a negro si el fondo es muy claro */
+}
+
+body { 
+    font-family: 'Outfit', sans-serif; 
+    background-color: #f3f5f7; 
+    padding-bottom: 150px; /* Más espacio para los botones flotantes */
+}
+
+/* Hero y Marca */
+.hero { 
+    width: 100%; 
+    height: 260px; 
+    background-size: cover; 
+    background-position: center; 
+    border-radius: 0 0 30px 30px; 
+    margin-bottom: 25px; 
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
+    background-color: #ccc; 
+}
+
+/* Categorías */
+.cat-btn { 
+    background: white; 
+    border: 1px solid #ddd; 
+    padding: 8px 22px; 
+    border-radius: 50px; 
+    white-space: nowrap; 
+    cursor: pointer; 
+    transition: 0.3s; 
+}
+.cat-btn.active { 
+    background: var(--p-color) !important; 
+    color: var(--p-contrast) !important; 
+    border-color: var(--p-color); 
+}
+
+/* Tarjetas de Producto */
+.p-card { 
+    border: none; 
+    border-radius: 20px; 
+    background: white; 
+    overflow: hidden; 
+    box-shadow: 0 5px 15px rgba(0,0,0,0.03); 
+    transition: 0.3s; 
+}
+.p-card:hover { transform: translateY(-5px); }
 .p-img { height: 200px; object-fit: cover; width: 100%; cursor: pointer; }
-.btn-main { background-color: var(--p-color) !important; color: white !important; border-radius: 50px; border: none; font-weight: 600; padding: 10px; }
+
+/* Botones Principales */
+.btn-main { 
+    background-color: var(--p-color) !important; 
+    color: var(--p-contrast) !important; 
+    border-radius: 50px; 
+    border: none; 
+    font-weight: 600; 
+    padding: 10px; 
+    transition: 0.3s;
+}
 .btn-main:disabled { background-color: #d1d1d1 !important; color: #777 !important; }
+
+/* Detalles Modal */
 .img-main-detail { width: 100%; height: 380px; object-fit: cover; border-radius: 20px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
 .thumb-img { width: 65px; height: 65px; object-fit: cover; border-radius: 12px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
 .thumb-img:hover { border-color: var(--p-color); }
-.cart-float { position: fixed; bottom: 20px; right: 20px; z-index: 1000; background: var(--p-color); color: white; border-radius: 50px; padding: 15px 25px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); border: none; }
-footer { background: white; padding: 40px 0; margin-top: 50px; border-radius: 40px 40px 0 0; text-align: center; }
-.social-icons a { font-size: 1.6rem; margin: 0 15px; color: #636e72; text-decoration: none; }
+
+/* BOTÓN FLOTANTE: CARRITO */
+.cart-float { 
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px; 
+    z-index: 1050; 
+    background: var(--p-color); 
+    color: var(--p-contrast) !important; 
+    border-radius: 50px; 
+    padding: 15px 25px; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+    border: none; 
+    transition: 0.3s ease;
+}
+.cart-float i { color: var(--p-contrast) !important; } /* Icono dinámico */
+
+/* BOTÓN FLOTANTE: WHATSAPP (Arriba del carrito) */
+.wa-float { 
+    position: fixed; 
+    bottom: 95px; /* Distancia perfecta sobre el carrito */
+    right: 20px; 
+    z-index: 1050; 
+    background-color: #25d366; /* Verde WA original por defecto */
+    color: white !important; 
+    border-radius: 50px; 
+    width: 60px; 
+    height: 60px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2); 
+    text-decoration: none; 
+    font-size: 30px; 
+    transition: 0.3s ease; 
+}
+.wa-float:hover { transform: scale(1.1); filter: brightness(1.1); }
+
+/* Footer y Redes */
+footer { 
+    background: white; 
+    padding: 30px 0; 
+    margin-top: 50px; 
+    border-radius: 40px 40px 0 0; 
+    text-align: center; 
+}
+.social-icons a { font-size: 1.6rem; margin: 0 15px; color: #636e72; text-decoration: none; transition: 0.3s; }
+.social-icons a:hover { color: var(--p-color); }
