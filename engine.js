@@ -62,6 +62,23 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
         if (window.config.tiktok) socHTML += `<a href="${window.config.tiktok}" target="_blank"><i class="fab fa-tiktok"></i></a>`;
         if (document.getElementById('socials')) document.getElementById('socials').innerHTML = socHTML;
 
+        // WhatsApp Floating Button
+        if (window.config.celular) {
+            let existingWaBtn = document.getElementById('wa-float-btn');
+            if (!existingWaBtn) {
+                let waBtn = document.createElement('a');
+                waBtn.id = 'wa-float-btn';
+                waBtn.className = 'wa-float';
+                waBtn.target = '_blank';
+                waBtn.innerHTML = '<i class="fab fa-whatsapp"></i>';
+                document.body.appendChild(waBtn);
+                existingWaBtn = waBtn;
+            }
+            const numero = window.config.celular.replace(/\s+/g, '');
+            const saludo = window.config.mensaje_base || "Hola, tengo una consulta sobre la tienda";
+            existingWaBtn.href = `https://wa.me/${numero}?text=${encodeURIComponent(saludo)}`;
+        }
+
         window.allProd = productsData.filter(p => p.Nombre && p.Visible === "Mostrar");
         window.renderCats();
         window.filtrar();
