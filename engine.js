@@ -14,47 +14,57 @@ window.parsePrecioFocuz = function(val) {
 };
 
 window.initFocuz = function(PROD_LINK, CONF_LINK) {
-    Papa.parse(CONF_LINK, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-            window.config = {};
-            results.data.forEach(row => {
-                if (row.clave) {
-                    window.config[row.clave.trim()] = row.valor ? row.valor.trim() : "";
-                }
-            });
+    const fetchConfig = new Promise((resolve) => {
+        Papa.parse(CONF_LINK, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                resolve(results.data);
+            }
+        });
+    });
 
-            const nombreTienda = window.config.nombre_tienda || "Focuz Shop";
-            const colorPrincipal = window.config.color_principal || "#4E0E86";
-            const moneda = window.config.moneda || "C$";
+    const fetchProducts = new Promise((resolve) => {
+        Papa.parse(PROD_LINK, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                resolve(results.data);
+            }
+        });
+    });
 
-            document.documentElement.style.setProperty('--p-color', colorPrincipal);
-            document.title = nombreTienda;
+    Promise.all([fetchConfig, fetchProducts]).then(([configData, productsData]) => {
+        window.config = {};
+        configData.forEach(row => {
+            if (row.clave) {
+                window.config[row.clave.trim()] = row.valor ? row.valor.trim() : "";
+            }
+        });
 
-            if (document.getElementById('brand-name')) document.getElementById('brand-name').innerText = nombreTienda;
-            if (document.getElementById('dinamic-title')) document.getElementById('dinamic-title').innerText = nombreTienda;
-            if (document.getElementById('hero') && window.config.portada) document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
-            if (document.getElementById('favicon') && window.config.favicon) document.getElementById('favicon').href = window.config.favicon;
+        const nombreTienda = window.config.nombre_tienda || "Focuz Shop";
+        const colorPrincipal = window.config.color_principal || "#4E0E86";
+        const moneda = window.config.moneda || "C$";
 
-            let socHTML = '';
-            if (window.config.facebook) socHTML += `<a href="${window.config.facebook}" target="_blank"><i class="fab fa-facebook"></i></a>`;
-            if (window.config.instagram) socHTML += `<a href="${window.config.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>`;
-            if (window.config.tiktok) socHTML += `<a href="${window.config.tiktok}" target="_blank"><i class="fab fa-tiktok"></i></a>`;
-            if (document.getElementById('socials')) document.getElementById('socials').innerHTML = socHTML;
+        document.documentElement.style.setProperty('--p-color', colorPrincipal);
+        document.title = nombreTienda;
 
-            Papa.parse(PROD_LINK, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(res) {
-                    window.allProd = res.data.filter(p => p.Nombre && p.Visible === "Mostrar");
-                    window.renderCats();
-                    window.filtrar();
-                }
-            });
-        }
+        if (document.getElementById('brand-name')) document.getElementById('brand-name').innerText = nombreTienda;
+        if (document.getElementById('dinamic-title')) document.getElementById('dinamic-title').innerText = nombreTienda;
+        if (document.getElementById('hero') && window.config.portada) document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
+        if (document.getElementById('favicon') && window.config.favicon) document.getElementById('favicon').href = window.config.favicon;
+
+        let socHTML = '';
+        if (window.config.facebook) socHTML += `<a href="${window.config.facebook}" target="_blank"><i class="fab fa-facebook"></i></a>`;
+        if (window.config.instagram) socHTML += `<a href="${window.config.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>`;
+        if (window.config.tiktok) socHTML += `<a href="${window.config.tiktok}" target="_blank"><i class="fab fa-tiktok"></i></a>`;
+        if (document.getElementById('socials')) document.getElementById('socials').innerHTML = socHTML;
+
+        window.allProd = productsData.filter(p => p.Nombre && p.Visible === "Mostrar");
+        window.renderCats();
+        window.filtrar();
     });
 };
 
