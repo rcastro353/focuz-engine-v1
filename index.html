@@ -85,7 +85,16 @@
     </a>
 
     <button class="cart-float fw-bold" data-bs-toggle="offcanvas" data-bs-target="#cart">
-        🛒 <span id="c-count">0</span> | <span id="c-total">C$ 0</span>
+        <span class="cart-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+                <circle cx="9" cy="20" r="1.5"></circle>
+                <circle cx="18" cy="20" r="1.5"></circle>
+                <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.8L20 8H7"></path>
+            </svg>
+        </span>
+        <span id="c-count">0</span>
+        <span>|</span>
+        <span id="c-total">C$ 0</span>
     </button>
     
     <div class="offcanvas offcanvas-end rounded-start-4 shadow" id="cart">
