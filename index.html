@@ -91,9 +91,135 @@
             console.log("Iniciando motor...");
             if(typeof window.initFocuz === 'function') {
                 window.initFocuz(
-                    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQaItIMXLAtmocAPHIGaONZuWPxhooh702AOJJG8ZPs1sj80oJZ7iB6Q5_dmFquHIGx-5gGSNSBN7xP/pub?gid=2048870662&single=true&output=csv",
-                    "https://docs.google.com/spreadsheets/d/e/2PACX-1vQaItIMXLAtmocAPHIGaONZuWPxhooh702AOJJG8ZPs1sj80oJZ7iB6Q5_dmFquHIGx-5gGSNSBN7xP/pub?gid=1511626760&single=true&output=csv"
-                );
+                    <script>
+    const TIENDAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4oXIQ67FEhVfxNXAQuK5y2-OgAZDdNCX1WGBVMS8g7eNLUKD9Y0voehK21H6oTE64j2dwVuLyYrbC/pub?gid=0&single=true&output=csv";
+
+    let engineRetries = 0;
+    const MAX_ENGINE_RETRIES = 5;
+    let tiendaIniciada = false;
+    let PROD_LINK = "";
+    let CONF_LINK = "";
+
+    function mostrarError(mensaje) {
+        const productos = document.getElementById("productos");
+        if (!productos) return;
+
+        productos.innerHTML = `
+            <div class="col-12">
+                <div class="error-box shadow-sm">
+                    <h5 class="fw-bold mb-2">No se pudo cargar la tienda</h5>
+                    <p class="mb-0">${mensaje}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function obtenerSlugActual() {
+        const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+        return path || "focuz";
+    }
+
+    function buscarTiendaYArrancar() {
+        const slugActual = obtenerSlugActual();
+
+        Papa.parse(TIENDAS_CSV, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                const filas = results.data || [];
+
+                const tienda = filas.find(row => {
+                    const slug = row.slug ? String(row.slug).trim().toLowerCase() : "";
+                    const activa = row.activa ? String(row.activa).trim().toLowerCase() : "";
+                    return slug === slugActual && activa === "si";
+                });
+
+                if (!tienda) {
+                    mostrarError(`No se encontró una tienda activa para la ruta: ${slugActual}`);
+                    return;
+                }
+
+                PROD_LINK = tienda.prod_csv ? String(tienda.prod_csv).trim() : "";
+                CONF_LINK = tienda.conf_csv ? String(tienda.conf_csv).trim() : "";
+
+                if (!PROD_LINK || !CONF_LINK) {
+                    mostrarError("La tienda existe, pero le falta el link de productos o config.");
+                    return;
+                }
+
+                aplicarConfigVisual(CONF_LINK);
+                arrancarTienda();
+            },
+            error: function() {
+                mostrarError("No se pudo leer el archivo central de tiendas.");
+            }
+        });
+    }
+
+    function aplicarConfigVisual(confLink) {
+        Papa.parse(confLink, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                try {
+                    const rows = results.data || [];
+                    const config = {};
+
+                    rows.forEach(row => {
+                        const clave = row?.clave ? String(row.clave).trim() : "";
+                        const valor = row?.valor ? String(row.valor).trim() : "";
+                        if (clave) config[clave] = valor;
+                    });
+
+                    if (config.color_principal) {
+                        document.documentElement.style.setProperty("--p-color", config.color_principal);
+                    }
+
+                    if (config.favicon && document.getElementById("favicon")) {
+                        document.getElementById("favicon").href = config.favicon;
+                    }
+                } catch (error) {
+                    console.warn("No se pudo aplicar config visual:", error);
+                }
+            },
+            error: function(error) {
+                console.warn("No se pudo leer config visual:", error);
+            }
+        });
+    }
+
+    function arrancarTienda() {
+        if (tiendaIniciada) return;
+
+        if (typeof window.initFocuz === "function") {
+            try {
+                tiendaIniciada = true;
+                window.initFocuz(PROD_LINK, CONF_LINK);
+            } catch (error) {
+                console.error("Error dentro de initFocuz:", error);
+                mostrarError("El motor cargó, pero ocurrió un error al iniciar la tienda.");
+            }
+            return;
+        }
+
+        engineRetries++;
+        console.error("No se encontró initFocuz. Intento:", engineRetries);
+
+        if (engineRetries < MAX_ENGINE_RETRIES) {
+            setTimeout(arrancarTienda, 1000);
+        } else {
+            mostrarError("El motor de la tienda no respondió. Revisa engine.js o su enlace.");
+        }
+    }
+
+    window.addEventListener("load", function() {
+        setTimeout(() => {
+            buscarTiendaYArrancar();
+        }, 300);
+    });
+</script>                );
             } else {
                 console.error("No se encontró initFocuz. Reintentando...");
                 setTimeout(arrancarTienda, 1000);
