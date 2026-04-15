@@ -221,43 +221,52 @@
             }
         }
 
-        function buscarTiendaYArrancar() {
-            const slugActual = obtenerSlugActual();
+       function buscarTiendaYArrancar() {
+    const slugActual = obtenerSlugActual();
 
-            Papa.parse(TIENDAS_CSV, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    const filas = results.data || [];
+    Papa.parse(TIENDAS_CSV, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+            const filas = results.data || [];
 
-                    const tienda = filas.find(row => {
-                        const slug = row.slug ? String(row.slug).trim().toLowerCase() : "";
-                        const activa = row.activa ? String(row.activa).trim().toLowerCase() : "";
-                        return slug === slugActual && activa === "si";
-                    });
-
-                    if (!tienda) {
-                        mostrarError(`No se encontró una tienda activa para la ruta: ${slugActual}`);
-                        return;
-                    }
-
-                    PROD_LINK = tienda.prod_csv ? String(tienda.prod_csv).trim() : "";
-                    CONF_LINK = tienda.conf_csv ? String(tienda.conf_csv).trim() : "";
-
-                    if (!PROD_LINK || !CONF_LINK) {
-                        mostrarError("La tienda existe, pero le falta el link de productos o config.");
-                        return;
-                    }
-
-                    aplicarConfigVisual(CONF_LINK);
-                    arrancarTienda();
-                },
-                error: function() {
-                    mostrarError("No se pudo leer el archivo central de tiendas.");
-                }
+            // 1. Buscar solo por slug (sin importar estado)
+            const tienda = filas.find(row => {
+                const slug = row.slug ? String(row.slug).trim().toLowerCase() : "";
+                return slug === slugActual;
             });
+
+            // 2. Si NO existe la tienda
+            if (!tienda) {
+                mostrarError(`🚀 ¡Esta tienda aún no existe! 🛍️ ¡Reclama la tuya y comienza a vender por WhatsApp hoy mismo! Escríbenos al 8153-6640 📲`);
+                return;
+            }
+
+            // 3. Si existe pero está inactiva
+            const activa = tienda.activa ? String(tienda.activa).trim().toLowerCase() : "";
+            if (activa !== "si") {
+                mostrarError(`⚠️ ¡Esta tienda está en mantenimiento!\n🛠️ Volveremos pronto con muchas novedades.\n¡Gracias por visitarnos! ✨`);
+                return;
+            }
+
+            // 4. Si está activa, continuar normal
+            PROD_LINK = tienda.prod_csv ? String(tienda.prod_csv).trim() : "";
+            CONF_LINK = tienda.conf_csv ? String(tienda.conf_csv).trim() : "";
+
+            if (!PROD_LINK || !CONF_LINK) {
+                mostrarError("La tienda existe, pero le falta el link de productos o config.");
+                return;
+            }
+
+            aplicarConfigVisual(CONF_LINK);
+            arrancarTienda();
+        },
+        error: function() {
+            mostrarError("No se pudo leer el archivo central de tiendas.");
         }
+    });
+}
     </script>
 
     <script src="https://rcastro353.github.io/focuz-engine-v1/engine.js"></script>
