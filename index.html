@@ -8,17 +8,40 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://rcastro353.github.io/focuz-engine-v1/style.css">
+
+    <style>
+        .error-box {
+            background: #fff5f5;
+            border: 1px solid #f5c2c7;
+            color: #842029;
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
     <div id="hero" class="hero"></div>
-    <div class="container text-center mb-4"><h2 class="fw-bold" id="brand-name">Conectando...</h2></div>
+    <div class="container text-center mb-4">
+        <h2 class="fw-bold" id="brand-name">Conectando...</h2>
+    </div>
     
     <div class="container">
         <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden bg-white">
-            <span class="input-group-text border-0 bg-white ps-4"><i class="fas fa-search text-muted"></i></span>
-            <input type="text" id="search" class="form-control border-0 py-3" placeholder="¿Qué buscas?" oninput="window.filtrar()">
+            <span class="input-group-text border-0 bg-white ps-4">
+                <i class="fas fa-search text-muted"></i>
+            </span>
+            <input
+                type="text"
+                id="search"
+                class="form-control border-0 py-3"
+                placeholder="¿Qué buscas?"
+                oninput="if(window.filtrar) window.filtrar()"
+            >
         </div>
+
         <div id="categories" class="d-flex overflow-auto gap-2 mb-4 pb-2" style="scrollbar-width: none;"></div>
+
         <div id="productos" class="row g-3">
             <div class="text-center py-5">
                 <div class="spinner-border text-success"></div>
@@ -35,17 +58,22 @@
                         <img id="det-img-main" src="" class="img-main-detail mb-3">
                         <div id="det-thumbs" class="d-flex gap-2 justify-content-center overflow-auto"></div>
                     </div>
+
                     <div class="col-md-6 pt-3 pt-md-0">
                         <button type="button" class="btn-close float-end" data-bs-dismiss="modal"></button>
                         <h2 id="det-name" class="fw-bold mb-1"></h2>
                         <div id="det-code" class="fw-bold small text-muted mb-2"></div>
                         <h3 id="det-price" class="text-success fw-bold mb-3"></h3>
                         <div id="det-selector-area" class="mb-3"></div>
+
                         <div class="bg-light p-3 rounded-4 mb-3">
                             <h6 class="fw-bold small mb-1">Descripción:</h6>
                             <p id="det-desc" class="small mb-0 text-secondary" style="white-space: pre-line;"></p>
                         </div>
-                        <button id="det-btn-add" class="btn btn-main w-100 py-3 mt-2 shadow-sm fw-bold">AGREGAR AL CARRITO</button>
+
+                        <button id="det-btn-add" class="btn btn-main w-100 py-3 mt-2 shadow-sm fw-bold">
+                            AGREGAR AL CARRITO
+                        </button>
                     </div>
                 </div>
             </div>
@@ -56,16 +84,29 @@
         <i class="fab fa-whatsapp"></i>
     </a>
 
-    <button class="cart-float fw-bold" data-bs-toggle="offcanvas" data-bs-target="#cart">🛒 <span id="c-count">0</span> | <span id="c-total">C$ 0</span></button>
+    <button class="cart-float fw-bold" data-bs-toggle="offcanvas" data-bs-target="#cart">
+        🛒 <span id="c-count">0</span> | <span id="c-total">C$ 0</span>
+    </button>
     
     <div class="offcanvas offcanvas-end rounded-start-4 shadow" id="cart">
-        <div class="offcanvas-header border-bottom"><h5 class="fw-bold mb-0">Mi Pedido</h5><button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button></div>
+        <div class="offcanvas-header border-bottom">
+            <h5 class="fw-bold mb-0">Mi Pedido</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+        </div>
+
         <div class="offcanvas-body">
             <div id="cart-list"></div>
+
             <div class="mt-4 pt-3 border-top text-center">
-                <h3 class="fw-bold mb-3">Total: <span class="text-success" id="total-val">0</span></h3>
-                <button class="btn btn-main w-100 py-3 mb-2 fw-bold" onclick="window.enviarWhatsApp()">WHATSAPP</button>
-                <button class="btn btn-link text-danger w-100 btn-sm text-decoration-none" onclick="window.vaciarCarrito()">Vaciar</button>
+                <h3 class="fw-bold mb-3">
+                    Total: <span class="text-success" id="total-val">0</span>
+                </h3>
+                <button class="btn btn-main w-100 py-3 mb-2 fw-bold" onclick="if(window.enviarWhatsApp) window.enviarWhatsApp()">
+                    WHATSAPP
+                </button>
+                <button class="btn btn-link text-danger w-100 btn-sm text-decoration-none" onclick="if(window.vaciarCarrito) window.vaciarCarrito()">
+                    Vaciar
+                </button>
             </div>
         </div>
     </div>
@@ -75,9 +116,9 @@
     </div>
 
     <footer class="text-center py-3" style="border-top: 1px solid #eee; background-color: #f9f9f9;">
-        <a href="https://wa.me/50581536640?text=Hola!%20Me%20interesa%20hacer%20crecer%20mi%20emprendimiento" 
-           target="_blank" 
-           class="d-block small text-decoration-none fw-bold" 
+        <a href="https://wa.me/50581536640?text=Hola!%20Me%20interesa%20hacer%20crecer%20mi%20emprendimiento"
+           target="_blank"
+           class="d-block small text-decoration-none fw-bold"
            style="color: var(--p-color); font-size: 0.75rem; letter-spacing: 0.5px;">
             © Powered by Focuz Design 🚀 Info: 8153-6640
         </a>
@@ -87,146 +128,137 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 
     <script>
-        function arrancarTienda() {
-            console.log("Iniciando motor...");
-            if(typeof window.initFocuz === 'function') {
-                window.initFocuz(
-                    <script>
-    const TIENDAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4oXIQ67FEhVfxNXAQuK5y2-OgAZDdNCX1WGBVMS8g7eNLUKD9Y0voehK21H6oTE64j2dwVuLyYrbC/pub?gid=0&single=true&output=csv";
+        const TIENDAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR4oXIQ67FEhVfxNXAQuK5y2-OgAZDdNCX1WGBVMS8g7eNLUKD9Y0voehK21H6oTE64j2dwVuLyYrbC/pub?gid=0&single=true&output=csv";
 
-    let engineRetries = 0;
-    const MAX_ENGINE_RETRIES = 5;
-    let tiendaIniciada = false;
-    let PROD_LINK = "";
-    let CONF_LINK = "";
+        let engineRetries = 0;
+        const MAX_ENGINE_RETRIES = 5;
+        let tiendaIniciada = false;
+        let PROD_LINK = "";
+        let CONF_LINK = "";
 
-    function mostrarError(mensaje) {
-        const productos = document.getElementById("productos");
-        if (!productos) return;
+        function mostrarError(mensaje) {
+            const productos = document.getElementById("productos");
+            if (!productos) return;
 
-        productos.innerHTML = `
-            <div class="col-12">
-                <div class="error-box shadow-sm">
-                    <h5 class="fw-bold mb-2">No se pudo cargar la tienda</h5>
-                    <p class="mb-0">${mensaje}</p>
+            productos.innerHTML = `
+                <div class="col-12">
+                    <div class="error-box shadow-sm">
+                        <h5 class="fw-bold mb-2">No se pudo cargar la tienda</h5>
+                        <p class="mb-0">${mensaje}</p>
+                    </div>
                 </div>
-            </div>
-        `;
-    }
+            `;
+        }
 
-    function obtenerSlugActual() {
-        const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
-        return path || "focuz";
-    }
+        function obtenerSlugActual() {
+            const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
+            return path || "focuz";
+        }
 
-    function buscarTiendaYArrancar() {
-        const slugActual = obtenerSlugActual();
+        function aplicarConfigVisual(confLink) {
+            Papa.parse(confLink, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    try {
+                        const rows = results.data || [];
+                        const config = {};
 
-        Papa.parse(TIENDAS_CSV, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                const filas = results.data || [];
+                        rows.forEach(row => {
+                            const clave = row?.clave ? String(row.clave).trim() : "";
+                            const valor = row?.valor ? String(row.valor).trim() : "";
+                            if (clave) config[clave] = valor;
+                        });
 
-                const tienda = filas.find(row => {
-                    const slug = row.slug ? String(row.slug).trim().toLowerCase() : "";
-                    const activa = row.activa ? String(row.activa).trim().toLowerCase() : "";
-                    return slug === slugActual && activa === "si";
-                });
+                        if (config.color_principal) {
+                            document.documentElement.style.setProperty("--p-color", config.color_principal);
+                        }
 
-                if (!tienda) {
-                    mostrarError(`No se encontró una tienda activa para la ruta: ${slugActual}`);
-                    return;
+                        if (config.favicon && document.getElementById("favicon")) {
+                            document.getElementById("favicon").href = config.favicon;
+                        }
+                    } catch (error) {
+                        console.warn("No se pudo aplicar config visual:", error);
+                    }
+                },
+                error: function(error) {
+                    console.warn("No se pudo leer config visual:", error);
                 }
+            });
+        }
 
-                PROD_LINK = tienda.prod_csv ? String(tienda.prod_csv).trim() : "";
-                CONF_LINK = tienda.conf_csv ? String(tienda.conf_csv).trim() : "";
+        function arrancarTienda() {
+            if (tiendaIniciada) return;
 
-                if (!PROD_LINK || !CONF_LINK) {
-                    mostrarError("La tienda existe, pero le falta el link de productos o config.");
-                    return;
-                }
-
-                aplicarConfigVisual(CONF_LINK);
-                arrancarTienda();
-            },
-            error: function() {
-                mostrarError("No se pudo leer el archivo central de tiendas.");
-            }
-        });
-    }
-
-    function aplicarConfigVisual(confLink) {
-        Papa.parse(confLink, {
-            download: true,
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
+            if (typeof window.initFocuz === "function") {
                 try {
-                    const rows = results.data || [];
-                    const config = {};
+                    tiendaIniciada = true;
+                    window.initFocuz(PROD_LINK, CONF_LINK);
+                } catch (error) {
+                    console.error("Error dentro de initFocuz:", error);
+                    mostrarError("El motor cargó, pero ocurrió un error al iniciar la tienda.");
+                }
+                return;
+            }
 
-                    rows.forEach(row => {
-                        const clave = row?.clave ? String(row.clave).trim() : "";
-                        const valor = row?.valor ? String(row.valor).trim() : "";
-                        if (clave) config[clave] = valor;
+            engineRetries++;
+            console.error("No se encontró initFocuz. Intento:", engineRetries);
+
+            if (engineRetries < MAX_ENGINE_RETRIES) {
+                setTimeout(arrancarTienda, 1000);
+            } else {
+                mostrarError("El motor de la tienda no respondió. Revisa engine.js o su enlace.");
+            }
+        }
+
+        function buscarTiendaYArrancar() {
+            const slugActual = obtenerSlugActual();
+
+            Papa.parse(TIENDAS_CSV, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    const filas = results.data || [];
+
+                    const tienda = filas.find(row => {
+                        const slug = row.slug ? String(row.slug).trim().toLowerCase() : "";
+                        const activa = row.activa ? String(row.activa).trim().toLowerCase() : "";
+                        return slug === slugActual && activa === "si";
                     });
 
-                    if (config.color_principal) {
-                        document.documentElement.style.setProperty("--p-color", config.color_principal);
+                    if (!tienda) {
+                        mostrarError(`No se encontró una tienda activa para la ruta: ${slugActual}`);
+                        return;
                     }
 
-                    if (config.favicon && document.getElementById("favicon")) {
-                        document.getElementById("favicon").href = config.favicon;
+                    PROD_LINK = tienda.prod_csv ? String(tienda.prod_csv).trim() : "";
+                    CONF_LINK = tienda.conf_csv ? String(tienda.conf_csv).trim() : "";
+
+                    if (!PROD_LINK || !CONF_LINK) {
+                        mostrarError("La tienda existe, pero le falta el link de productos o config.");
+                        return;
                     }
-                } catch (error) {
-                    console.warn("No se pudo aplicar config visual:", error);
+
+                    aplicarConfigVisual(CONF_LINK);
+                    arrancarTienda();
+                },
+                error: function() {
+                    mostrarError("No se pudo leer el archivo central de tiendas.");
                 }
-            },
-            error: function(error) {
-                console.warn("No se pudo leer config visual:", error);
-            }
-        });
-    }
-
-    function arrancarTienda() {
-        if (tiendaIniciada) return;
-
-        if (typeof window.initFocuz === "function") {
-            try {
-                tiendaIniciada = true;
-                window.initFocuz(PROD_LINK, CONF_LINK);
-            } catch (error) {
-                console.error("Error dentro de initFocuz:", error);
-                mostrarError("El motor cargó, pero ocurrió un error al iniciar la tienda.");
-            }
-            return;
-        }
-
-        engineRetries++;
-        console.error("No se encontró initFocuz. Intento:", engineRetries);
-
-        if (engineRetries < MAX_ENGINE_RETRIES) {
-            setTimeout(arrancarTienda, 1000);
-        } else {
-            mostrarError("El motor de la tienda no respondió. Revisa engine.js o su enlace.");
-        }
-    }
-
-    window.addEventListener("load", function() {
-        setTimeout(() => {
-            buscarTiendaYArrancar();
-        }, 300);
-    });
-</script>                );
-            } else {
-                console.error("No se encontró initFocuz. Reintentando...");
-                setTimeout(arrancarTienda, 1000);
-            }
+            });
         }
     </script>
 
-    <script src="https://rcastro353.github.io/focuz-engine-v1/engine.js" onload="arrancarTienda()"></script>
+    <script src="https://rcastro353.github.io/focuz-engine-v1/engine.js"></script>
+
+    <script>
+        window.addEventListener("load", function() {
+            setTimeout(() => {
+                buscarTiendaYArrancar();
+            }, 300);
+        });
+    </script>
 </body>
 </html>
