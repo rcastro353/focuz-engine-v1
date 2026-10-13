@@ -13,9 +13,10 @@
        
  
     <link id="favicon" rel="icon" type="image/x-icon" href="">
+    <link rel="preconnect" href="https://docs.google.com" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://rcastro353.github.io/focuz-engine-v1/style.css">
+    <link rel="stylesheet" href="/style.css">
 
     <style>
         .error-box {
@@ -174,42 +175,11 @@
             `;
         }
 
+        window.mostrarErrorFocuz = mostrarError;
+
         function obtenerSlugActual() {
             const path = window.location.pathname.replace(/^\/+|\/+$/g, "").toLowerCase();
             return path || "focuz";
-        }
-
-        function aplicarConfigVisual(confLink) {
-            Papa.parse(confLink, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    try {
-                        const rows = results.data || [];
-                        const config = {};
-
-                        rows.forEach(row => {
-                            const clave = row?.clave ? String(row.clave).trim() : "";
-                            const valor = row?.valor ? String(row.valor).trim() : "";
-                            if (clave) config[clave] = valor;
-                        });
-
-                        if (config.color_principal) {
-                            document.documentElement.style.setProperty("--p-color", config.color_principal);
-                        }
-
-                        if (config.favicon && document.getElementById("favicon")) {
-                            document.getElementById("favicon").href = config.favicon;
-                        }
-                    } catch (error) {
-                        console.warn("No se pudo aplicar config visual:", error);
-                    }
-                },
-                error: function(error) {
-                    console.warn("No se pudo leer config visual:", error);
-                }
-            });
         }
 
         function arrancarTienda() {
@@ -274,7 +244,6 @@
                 return;
             }
 
-            aplicarConfigVisual(CONF_LINK);
             arrancarTienda();
         },
         error: function() {
@@ -284,14 +253,11 @@
 }
     </script>
 
-    <script src="https://rcastro353.github.io/focuz-engine-v1/engine.js"></script>
+    <script src="/engine.js"></script>
 
     <script>
-        window.addEventListener("load", function() {
-            setTimeout(() => {
-                buscarTiendaYArrancar();
-            }, 300);
-        });
+        // El script está al final del BODY, no necesita esperar al evento load.
+        buscarTiendaYArrancar();
     </script>
 </body>
 </html>

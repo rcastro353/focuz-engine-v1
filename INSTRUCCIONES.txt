@@ -1,0 +1,18 @@
+FOCUZ – Actualización para cargar más rápido (sin rediseño)
+
+INCLUYE:
+  index.html  : inicia inmediatamente y usa los archivos locales
+  engine.js   : descarga configuración e inventario en paralelo; lazy load fotos
+  style.css   : idéntico al archivo proporcionado; alojado en Cloudflare
+  _headers    : permite cachear CSS y JS por 5 minutos; HTML revalidado
+
+PASOS:
+1. Guardá una copia de tu repositorio FOCUZ actual antes de reemplazarlo.
+2. Subí los cuatro archivos A LA RAÍZ del repositorio GitHub de FOCUZ.
+3. Confirmá Commit changes y esperá a Cloudflare Pages.
+4. Probá /chavy en incógnito (buscador, categorías, detalle, variantes, carrito, WhatsApp).
+5. Si algo falla, revertí al código anterior.
+
+NO se modifica el inventario ni se cachea stock; permanece conectado a los CSV actuales.
+La primera visita aún depende de Google Sheets; más adelante podemos evaluar caché
+muy breve en Cloudflare, sin comprometer el stock de compras.

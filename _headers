@@ -1,2 +1,8 @@
 /*
-  Cache-Control: no-store
+  Cache-Control: no-cache
+
+/engine.js
+  Cache-Control: public, max-age=300, stale-while-revalidate=3600
+
+/style.css
+  Cache-Control: public, max-age=300, stale-while-revalidate=3600

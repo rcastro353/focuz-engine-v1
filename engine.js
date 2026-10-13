@@ -121,7 +121,7 @@ window.renderThumbs = function(fotos) {
     const thumbs = document.getElementById('det-thumbs');
     if (!thumbs) return;
     thumbs.innerHTML = (fotos || []).map(f =>
-        `<img src="${f}" class="thumb-img" onclick="document.getElementById('det-img-main').src='${f}'">`
+        `<img src="${f}" class="thumb-img" loading="lazy" decoding="async" onclick="document.getElementById('det-img-main').src='${f}'">`
     ).join('');
 };
 
@@ -167,17 +167,32 @@ window.rebuildIndexes = function() {
 };
 
 // --- INIT ---
+// La configuracion y el inventario se descargan en PARALELO.
+// Se conserva la logica existente de variantes, carrito, stock y WhatsApp.
 window.initFocuz = function(PROD_LINK, CONF_LINK) {
-    Papa.parse(CONF_LINK, {
-        download: true,
-        header: true,
-        skipEmptyLines: true,
-        complete: function(results) {
-            window.config = {};
+    const descargarCSV = (url) => new Promise((resolve, reject) => {
+        Papa.parse(url, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: function(results) {
+                if (!results || !Array.isArray(results.data)) {
+                    reject(new Error('CSV sin datos válidos'));
+                    return;
+                }
+                resolve(results.data);
+            },
+            error: function(error) { reject(error || new Error('Error de red al descargar CSV')); }
+        });
+    });
 
-            results.data.forEach(row => {
+    // Empezar las dos solicitudes juntas (antes una esperaba a la otra).
+    Promise.all([descargarCSV(CONF_LINK), descargarCSV(PROD_LINK)])
+        .then(([configRows, productosRows]) => {
+            window.config = {};
+            configRows.forEach(row => {
                 if (row.clave) {
-                    window.config[row.clave.trim()] = row.valor ? row.valor.trim() : "";
+                    window.config[String(row.clave).trim()] = row.valor ? String(row.valor).trim() : "";
                 }
             });
 
@@ -189,7 +204,6 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 '--text-on-primary',
                 window.esColorClaro(colorPrincipal) ? '#000000' : '#ffffff'
             );
-
             document.title = nombreTienda;
 
             const waFloatBtn = document.getElementById('wa-float-btn');
@@ -198,19 +212,15 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 const msg = window.config.mensaje_base || "¡Hola! Tengo una consulta.";
                 waFloatBtn.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
             }
-
             if (document.getElementById('brand-name')) {
                 document.getElementById('brand-name').innerText = nombreTienda;
             }
-
             if (document.getElementById('dinamic-title')) {
                 document.getElementById('dinamic-title').innerText = nombreTienda;
             }
-
             if (document.getElementById('hero') && window.config.portada) {
                 document.getElementById('hero').style.backgroundImage = `url('${window.config.portada}')`;
             }
-
             if (document.getElementById('favicon') && window.config.favicon) {
                 document.getElementById('favicon').href = window.config.favicon;
             }
@@ -223,36 +233,32 @@ window.initFocuz = function(PROD_LINK, CONF_LINK) {
                 document.getElementById('socials').innerHTML = socHTML;
             }
 
-            Papa.parse(PROD_LINK, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(res) {
-                    window.allProd = res.data
-                        .filter(p => p.Nombre && p.Visible === "Mostrar")
-                        .map(p => {
-                            const precioNormal = window.parsePrecioFocuz(p.Precio);
-                            const precioDescuento = window.parsePrecioFocuz(p['Precio Descuento']);
-                            const precioFinal = precioDescuento > 0 ? precioDescuento : precioNormal;
-                            const stock = parseInt(p.Stock || 0, 10);
-
-                            return {
-                                ...p,
-                                _precioNormal: precioNormal,
-                                _precioDescuento: precioDescuento,
-                                _precioFinal: precioFinal,
-                                _stock: isNaN(stock) ? 0 : stock
-                            };
-                        });
-
-                    window.rebuildIndexes();
-                    window.renderCats();
-                    window.filtrar();
-                    window.actualizarCarrito();
-                }
-            });
-        }
-    });
+            window.allProd = productosRows
+                .filter(p => p.Nombre && p.Visible === "Mostrar")
+                .map(p => {
+                    const precioNormal = window.parsePrecioFocuz(p.Precio);
+                    const precioDescuento = window.parsePrecioFocuz(p['Precio Descuento']);
+                    const precioFinal = precioDescuento > 0 ? precioDescuento : precioNormal;
+                    const stock = parseInt(p.Stock || 0, 10);
+                    return {
+                        ...p,
+                        _precioNormal: precioNormal,
+                        _precioDescuento: precioDescuento,
+                        _precioFinal: precioFinal,
+                        _stock: isNaN(stock) ? 0 : stock
+                    };
+                });
+            window.rebuildIndexes();
+            window.renderCats();
+            window.filtrar();
+            window.actualizarCarrito();
+        })
+        .catch(error => {
+            console.error('Error al leer el inventario o la configuración:', error);
+            if (typeof window.mostrarErrorFocuz === 'function') {
+                window.mostrarErrorFocuz('No se pudieron cargar los datos de esta tienda. Intentá actualizar la página.');
+            }
+        });
 };
 
 // --- CATEGORÍAS ---
@@ -308,7 +314,7 @@ window.filtrar = function() {
     const productosDiv = document.getElementById('productos');
     if (!productosDiv) return;
 
-    productosDiv.innerHTML = Object.keys(groups).map(nombre => {
+    productosDiv.innerHTML = Object.keys(groups).map((nombre, indice) => {
         const variants = groups[nombre];
         const padre = window.getPadreVisual(variants);
         const variantesComprables = window.getVariantesComprables(variants);
@@ -325,7 +331,7 @@ window.filtrar = function() {
             <div class="col-6 col-md-4 col-lg-3">
                 <div class="p-card h-100 position-relative ${stockTotal <= 0 ? 'opacity-75' : ''}">
                     ${padre?.Etiqueta ? `<span class="badge bg-danger position-absolute m-2" style="z-index:5">${padre.Etiqueta}</span>` : ""}
-                    <img src="${padre?.['Imagen 1'] || padre?.['Imagen_App'] || ''}" class="p-img" onclick="${clickImagen}">
+                    <img src="${padre?.['Imagen 1'] || padre?.['Imagen_App'] || ''}" class="p-img" ${indice < 2 ? 'loading="eager" fetchpriority="high"' : 'loading="lazy" fetchpriority="low"'} decoding="async" onclick="${clickImagen}">
                     <div class="p-3 text-center">
                         <h6 class="fw-bold small text-truncate mb-1">${nombre}</h6>
                         <p class="text-success fw-bold mb-2">
@@ -508,7 +514,7 @@ window.actualizarCarrito = function() {
 
         return `
             <div class="d-flex align-items-center mb-3">
-                <img src="${i.f}" style="width:50px;height:50px;object-fit:cover" class="me-3 rounded">
+                <img src="${i.f}" loading="lazy" decoding="async" style="width:50px;height:50px;object-fit:cover" class="me-3 rounded">
                 <div class="flex-grow-1">
                     <h6 class="mb-0 small">${i.n}</h6>
                     ${i.v ? `<small class="d-block text-muted">${i.v}</small>` : ""}
